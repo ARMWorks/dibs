@@ -6,6 +6,7 @@ SYSTEM=debian
 ARCH=armhf
 SUITE=testing
 DEVICE=image.bin
+HOSTNAME=unknown
 
 ###### END SETTINGS ######
 
@@ -107,7 +108,7 @@ do_debootstrap() {
     cp -n $CACHE/*.deb $ROOT/var/cache/apt/archives
   fi
 
-  debootstrap --variant=minbase --arch $ARCH --include=aptitude,udev $SUITE $ROOT $MIRROR
+  debootstrap --variant=minbase --arch $ARCH --include=aptitude,kmod,udev $SUITE $ROOT $MIRROR
   mount -t proc proc $ROOT/proc
 
   sudo -u $SUDO_USER cp -n $ROOT/var/cache/apt/archives/*.deb $CACHE
@@ -130,7 +131,7 @@ __END__
   esac
 
   # set empty root password
-  sed 's/\(root:\)[^:]*\(:\)/\1\2/' $ROOT/etc/shadow
+  sed -i 's/\(root:\)[^:]*\(:\)/\1\2/' $ROOT/etc/shadow
 
   # set hostname and hosts file
   echo $HOSTNAME > $ROOT/etc/hostname
