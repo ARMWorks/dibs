@@ -171,6 +171,9 @@ ff02::2 ip6-allrouters
 __END__
 }
 
+
+##### BEGIN #####
+
 sanity_check
 
 case $1 in
@@ -181,7 +184,7 @@ case $1 in
     teardown_root
     ;;
   shell)
-	if [ ! -e $DEVICE ]; then
+    if [ ! -e $DEVICE ]; then
       echo Device or image does not exist
       exit
     fi
