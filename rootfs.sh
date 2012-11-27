@@ -29,6 +29,29 @@ show_usage() {
   echo "  $0 qemu"
 }
 
+sanity_check() {
+  OK=1
+  if [ -z $(which qemu-arm-static) ]; then
+    echo "qemu-arm-static is missing"
+    echo "  Debian package: qemu-user-static"
+    OK=0
+  fi
+  if [ -z $(which qemu-system-arm) ]; then
+    echo "qemu-system-arm is missing"
+    echo "  Debian package: qemu-system"
+    OK=0
+  fi
+  if [ -z $(which debootstrap) ]; then
+    echo "debootstrap is missing"
+    echo "  Debian package: debootstrap"
+    OK=0
+  fi
+  if [ $OK -eq 0 ]; then
+    echo "Not OK"
+    exit
+  fi
+}
+
 setup_binfmt() {
   if [ ! -f /proc/sys/fs/binfmt_misc/arm ]; then
     if [ ! -f /proc/sys/fs/binfmt_misc/register ]; then
@@ -146,9 +169,9 @@ ff00::0 ip6-mcastprefix
 ff02::1 ip6-allnodes
 ff02::2 ip6-allrouters
 __END__
-
-  
 }
+
+sanity_check
 
 case $1 in
   setup)
