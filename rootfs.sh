@@ -56,12 +56,18 @@ setup_binfmt() {
   if [ ! -f /proc/sys/fs/binfmt_misc/arm ]; then
     if [ ! -f /proc/sys/fs/binfmt_misc/register ]; then
       if [ ! -d /proc/sys/fs/binfmt_misc ]; then
-        sudo modprobe binfmt_misc
+        modprobe binfmt_misc
       fi
-      sudo mount binfmt_misc -t binfmt_misc /proc/sys/binfmt_misc
+      mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc
     fi
-    sudo sh -C "echo ':arm:M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-arm-static:' > /proc/sys/fs/binfmt_misc/register"
+    echo -n ':arm:M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-arm-static:' > /proc/sys/fs/binfmt_misc/register
   fi
+}
+
+teardown_binfmt() {
+  echo -n -1 > /proc/sys/fs/binfmt_misc/arm
+  umount /proc/sys/fs/binfmt_misc
+  modprobe -r binfmt_misc
 }
 
 run_target() {
@@ -188,10 +194,13 @@ case $1 in
       echo Device or image does not exist
       exit
     fi
-    setup_root
     setup_binfmt
+    setup_root
     debian_chroot=$ARCH run_target /bin/bash
     teardown_root
+    ;;
+  unbinfmt)
+    teardown_binfmt
     ;;
   qemu)
     sudo -u $SUDO_USER qemu-system-arm -machine vexpress-a9 -cpu cortex-a8 \
