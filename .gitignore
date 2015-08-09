@@ -1,2 +1,5 @@
 /cache
-image.bin
+/root
+config.sh
+*.bin
+*.tar.xz

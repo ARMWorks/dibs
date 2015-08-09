@@ -1,0 +1,5 @@
+SYSTEM=debian
+ARCH=armhf
+SUITE=testing
+DEVICE=image.bin
+HOSTNAME=unknown

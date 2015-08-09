@@ -1,16 +1,15 @@
 #!/bin/bash
 
-##### BEGIN SETTINGS #####
-
-SYSTEM=debian
-ARCH=armhf
-SUITE=testing
-DEVICE=image.bin
-HOSTNAME=unknown
-
-###### END SETTINGS ######
-
 TOP=$(dirname $(readlink -e $0))
+
+if [ ! -f "$TOP/config.sh" ]; then
+  cp "$TOP/config.sh.example" "$TOP/config.sh"
+  echo "please check over config.sh and try again"
+  exit
+fi
+
+source "$TOP/config.sh"
+
 CACHE=$TOP/cache/$SYSTEM-$ARCH-$SUITE
 BUILD=$(readlink -e .)
 ROOT=$BUILD/root
