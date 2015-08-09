@@ -204,8 +204,9 @@ case $1 in
     ;;
   qemu)
     sudo -u $SUDO_USER qemu-system-arm -machine vexpress-a9 -cpu cortex-a9 \
-      -sd $DEVICE -kernel $TOP/vmlinuz-3.10.79.0-1-linaro-lsk-vexpress \
-      -append "root=/dev/mmcblk0 rw rootwait" 
+      -kernel $TOP/vmlinuz-3.10.79.0-1-linaro-lsk-vexpress \
+      -append "root=/dev/mmcblk0 rw rootwait" \
+      -drive file=$DEVICE,if=sd,cache=writeback
     ;;
   *)
     show_usage
