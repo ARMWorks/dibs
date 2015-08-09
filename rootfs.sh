@@ -177,13 +177,26 @@ ff02::2 ip6-allrouters
 __END__
 
   # setup eth0 for qemu
-  cat > $ROOT/etc/network/interfaces.d/eth0 << __END__
+  case $SUITE in
+    testing)
+      cat > $ROOT/etc/network/interfaces.d/eth0 << __END__
 auto eth0
 iface eth0 inet static
     address 10.0.2.1
     netmask 255.255.255.0
     gateway 10.0.2.2
 __END__
+      ;;
+    *)
+      cat >> $ROOT/etc/network/interfaces << __END__
+auto eth0
+iface eth0 inet static
+    address 10.0.2.1
+    netmask 255.255.255.0
+    gateway 10.0.2.2
+__END__
+    ;;
+  esac
 }
 
 
