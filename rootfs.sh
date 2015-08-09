@@ -203,8 +203,8 @@ case $1 in
     teardown_binfmt
     ;;
   qemu)
-    sudo -u $SUDO_USER qemu-system-arm -machine vexpress-a9 -cpu cortex-a8 \
-      -sd $DEVICE -kernel $TOP/vmlinuz-arm \
+    sudo -u $SUDO_USER qemu-system-arm -machine vexpress-a9 -cpu cortex-a9 \
+      -sd $DEVICE -kernel $TOP/vmlinuz-3.10.79.0-1-linaro-lsk-vexpress \
       -append "root=/dev/mmcblk0 rw rootwait" 
     ;;
   *)
