@@ -151,8 +151,8 @@ do_postconfig() {
       cat << __END__ > $ROOT/etc/apt/sources.list
 deb http://mirrors.kernel.org/debian $SUITE main contrib non-free
 deb-src http://mirrors.kernel.org/debian $SUITE main contrib non-free
-deb http://security.debian.org/ $SUITE main contrib non-free
-deb-src http://security.debian.org/ $SUITE main contrib non-free
+#deb http://security.debian.org/ $SUITE main contrib non-free
+#deb-src http://security.debian.org/ $SUITE main contrib non-free
 __END__
       ;;
     *)
