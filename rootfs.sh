@@ -25,6 +25,7 @@ show_usage() {
   echo Usage:
   echo "  $0 setup"
   echo "  $0 shell"
+  echo "  $0 tarball"
   echo "  $0 qemu"
 }
 
@@ -228,6 +229,16 @@ case $1 in
       -kernel $TOP/vmlinuz-3.10.79.0-1-linaro-lsk-vexpress \
       -append "root=/dev/mmcblk0 rw rootwait" \
       -drive file=$DEVICE,if=sd,cache=writeback
+    ;;
+  tarball)
+    setup_root
+    pushd $ROOT > /dev/null
+    tarball="${DEVICE##*/}"
+    tarball="$TOP/${tarball%.*}.tar.xz"
+    tar -cpJf "$tarball" --one-file-system ./
+    chown $SUDO_USER "$tarball"
+    popd > /dev/null
+    teardown_root
     ;;
   *)
     show_usage
