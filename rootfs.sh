@@ -137,7 +137,7 @@ do_debootstrap() {
     cp -n $CACHE/*.deb $ROOT/var/cache/apt/archives
   fi
 
-  debootstrap --variant=minbase --arch $ARCH --include=aptitude,kmod,udev $SUITE $ROOT $MIRROR
+  debootstrap --variant=minbase --arch $ARCH --include=ifupdown,kmod,net-tools,vim-tiny $SUITE $ROOT $MIRROR
   mount -t proc proc $ROOT/proc
 
   sudo -u $SUDO_USER cp -n $ROOT/var/cache/apt/archives/*.deb $CACHE
@@ -174,6 +174,15 @@ fe00::0 ip6-localnet
 ff00::0 ip6-mcastprefix
 ff02::1 ip6-allnodes
 ff02::2 ip6-allrouters
+__END__
+
+  # setup eth0 for qemu
+  cat > $ROOT/etc/network/interfaces.d/eth0 << __END__
+auto eth0
+iface eth0 inet static
+    address 10.0.2.1
+    netmask 255.255.255.0
+    gateway 10.0.2.2
 __END__
 }
 
