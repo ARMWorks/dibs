@@ -194,8 +194,7 @@ do_debootstrap() {
         exit 1
     fi
 
-    run_as_user mkdir -p "$CACHE"
-    if [[ $(ls -A "$CACHE") ]]; then
+    if [[ -d "$CACHE" ]]; then
         mkdir -p "${ROOTFS}/var/cache/apt/archives"
         cp -n "${CACHE}/"*.deb "${ROOTFS}/var/cache/apt/archives"
     fi
@@ -207,6 +206,7 @@ do_debootstrap() {
         try --out debootstrap --variant=minbase --arch=$ARCH $SUITE "$ROOTFS" $MIRROR
     fi
 
+    run_as_user mkdir -p "$CACHE"
     run_as_user cp -n "${ROOTFS}/var/cache/apt/archives/"*.deb "$CACHE"
     rm "${ROOTFS}/var/cache/apt/archives/"*.deb
 
