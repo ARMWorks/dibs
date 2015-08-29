@@ -1,5 +1,8 @@
-/cache
-/root
-config.sh
-*.bin
-*.tar.xz
+/*
+!*.sh
+!/.git*
+!/config-*
+!/default.conf
+!/vmlinuz-*
+!/*_default.conf
+!/*_files
