@@ -210,11 +210,10 @@ do_debootstrap() {
     run_as_user cp -n "${ROOTFS}/var/cache/apt/archives/"*.deb "$CACHE"
     rm "${ROOTFS}/var/cache/apt/archives/"*.deb
 
-    rm -r "${ROOTFS}/var/lib/apt/lists/"*
-    rm -r "${ROOTFS}/var/log/"*
-
     BUILT=1
+}
 
+do_configure() {
     case $SYSTEM in
         debian)
             cat > "${ROOTFS}/etc/apt/sources.list" << EOF
@@ -233,6 +232,9 @@ EOF
             ;;
     esac
 
+    rm -rf "${ROOTFS}/var/lib/apt/lists/"*
+    rm -rf "${ROOTFS}/var/log/"*
+
     # set empty root password
     sed -i 's/\(root:\)[^:]*\(:\)/\1\2/' "${ROOTFS}/etc/shadow"
 
@@ -250,16 +252,19 @@ ff02::1 ip6-allnodes
 ff02::2 ip6-allrouters
 EOF
 
-    if [[ -n ${LOCALE} ]]; then
-        local locale=$(echo ${LOCALE} | sed 's/^\([^.]*\)\(\..*\)\?$/\1/')
+    if [[ -n $LOCALE ]]; then
+        local lang=$(echo ${LOCALE} | sed 's/^\([^_]\+\)\(_.\+\)\?$/\1/')
         if [[ -d "${ROOTFS}/usr/share/locale" ]]; then
             (cd "${ROOTFS}/usr/share/locale";
-             find . -maxdepth 1 ! -name $locale -a ! -name "." -type d -exec rm -r "{}" \;)
+             find . -maxdepth 1 ! -name $lang -a ! -name "$lang*" -a ! -name "." -type d -exec rm -r "{}" \;)
         fi
-        echo "LANG=$LOCALE" > "${ROOTFS}/etc/default/locale"
-        echo "$LOCALE" > "${ROOTFS}/etc/locale.gen"
         if [[ -x "${ROOTFS}/usr/sbin/locale-gen" ]]; then
+            sed -i 's/^\([^#].*\)$/# \1/' "${ROOTFS}/etc/locale.gen"
+            sed -i 's/^# \('$LOCALE' .\+\)$/\1/' "${ROOTFS}/etc/locale.gen"
             run_target /usr/sbin/locale-gen
+        fi
+        if [[ -x "${ROOTFS}/usr/sbin/update-locale" ]]; then
+            run_target /usr/sbin/update-locale LANG=$LOCALE
         fi
     else
         rm -r "${ROOTFS}/usr/share/locale/"*
@@ -273,8 +278,10 @@ show_usage() {
     echo
     echo "COMMAND is one of:"
     echo "  build"
+    echo "  reconfigure"
     echo "  shell"
     echo "  tarball"
+    echo "  tarxz"
     echo "  qemu"
     exit 1
 }
@@ -292,12 +299,27 @@ case $2 in
     build)
         require_conf
         do_debootstrap
+        do_configure
+        ;;
+    reconfigure)
+        require_image
+        require_conf
+        require_rootfs
+        do_configure
         ;;
     shell)
         require_image
         debian_chroot=$(basename "$IMAGE") run_target /bin/bash
         ;;
     tarball)
+        require_image
+        require_rootfs
+        tar -cpzf "${IMAGE}.tar.gz" --one-file-system -C "$ROOTFS" --exclude "lost+found" .
+        if [[ -n $SUDO_USER ]]; then
+            chown $SUDO_USER "${IMAGE}.tar.gz"
+        fi
+        ;;
+    tarxz)
         require_image
         require_rootfs
         tar -cpJf "${IMAGE}.tar.xz" --one-file-system -C "$ROOTFS" --exclude "lost+found" .
