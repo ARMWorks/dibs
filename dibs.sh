@@ -218,13 +218,13 @@ do_configure() {
         debian)
             cat > "${ROOTFS}/etc/apt/sources.list" << EOF
 deb http://mirrors.kernel.org/debian $SUITE main contrib non-free
-deb-src http://mirrors.kernel.org/debain $SUITE main contrib non-free
+#deb-src http://mirrors.kernel.org/debain $SUITE main contrib non-free
 EOF
 
             if [[ $SUITE != "experimental" ]]; then
                 cat >> "${ROOTFS}/etc/apt/sources.list" << EOF
-deb http://security.debian.org $SUITE main contrib non-free
-deb-src http://security.debian.org $SUITE main contrib non-free
+deb http://security.debian.org $SUITE/updates main contrib non-free
+#deb-src http://security.debian.org $SUITE/updates main contrib non-free
 EOF
             fi
             ;;
