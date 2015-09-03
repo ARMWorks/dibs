@@ -5,4 +5,4 @@
 !/default.conf
 !/vmlinuz-*
 !/*_default.conf
-!/*_files
+!/*_overlay
