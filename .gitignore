@@ -1,9 +1,6 @@
 /*
 !*.sh
 !/.git*
-!/config-*
 !/default.conf
+!/targets
 !/qemu
-!/vmlinuz-*
-!/*_default.conf
-!/*_overlay

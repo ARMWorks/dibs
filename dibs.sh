@@ -19,8 +19,8 @@ run_as_user() {
 require_conf() {
     if [[ ! -f "${IMAGE}.conf" ]]; then
         local machine=$(basename "${IMAGE}")
-        if [[ -f "${TOP}/${machine}_default.conf" ]]; then
-            cp "${TOP}/${machine}_default.conf" "${IMAGE}.conf"
+        if [[ -f "${TOP}/targets/${machine}/default.conf" ]]; then
+            cp "${TOP}/targets/${machine}/default.conf" "${IMAGE}.conf"
         else
             cp "${TOP}/default.conf" "${IMAGE}.conf"
         fi
