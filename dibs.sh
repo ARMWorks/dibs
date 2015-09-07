@@ -336,7 +336,7 @@ case $2 in
         fi
 
         try qemu-system-arm -machine vexpress-a9 -cpu cortex-a9 \
-            -kernel "${TOP}/vmlinuz-3.10.79.0-1-linaro-lsk-vexpress" \
+            -kernel "${TOP}/qemu/vmlinuz-3.10.79.0-1-linaro-lsk-vexpress" \
             -append "root=/dev/mmcblk0 rw rootwait" \
             -drive "file=${IMAGE},if=sd,format=raw,cache=writeback"
         ;;

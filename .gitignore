@@ -3,6 +3,7 @@
 !/.git*
 !/config-*
 !/default.conf
+!/qemu
 !/vmlinuz-*
 !/*_default.conf
 !/*_overlay
