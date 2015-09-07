@@ -18,13 +18,7 @@ run_as_user() {
 
 require_conf() {
     if [[ ! -f "${IMAGE}.conf" ]]; then
-        local machine=$(basename "${IMAGE}")
-        if [[ -f "${TOP}/targets/${machine}/default.conf" ]]; then
-            cp "${TOP}/targets/${machine}/default.conf" "${IMAGE}.conf"
-        else
-            cp "${TOP}/default.conf" "${IMAGE}.conf"
-        fi
-        echo "Please customize ${IMAGE}.conf and then try again"
+        echo "You need a configuration file first! [Hint: use defconfig]"
         exit 1
     fi
 
@@ -277,6 +271,7 @@ show_usage() {
     echo "Usage: $0 NAME COMMAND"
     echo
     echo "COMMAND is one of:"
+    echo "  defconfig [target]"
     echo "  build"
     echo "  reconfigure"
     echo "  shell"
@@ -296,6 +291,19 @@ IMAGE="$1"
 ROOTFS="$1_rootfs"
 
 case $2 in
+    defconfig)
+        if [[ "$3" ]]; then
+            target="$3"
+        else
+            target=$(basename "${IMAGE}")
+        fi
+        if [[ -f "${TOP}/targets/${target}/default.conf" ]]; then
+            cp "${TOP}/targets/${target}/default.conf" "${IMAGE}.conf"
+        else
+            cp "${TOP}/default.conf" "${IMAGE}.conf"
+        fi
+        echo "${IMAGE}.conf written"
+        ;;
     build)
         require_conf
         do_debootstrap
