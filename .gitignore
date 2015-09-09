@@ -2,5 +2,6 @@
 /*.conf
 /*.tar.gz
 /*.tar.xz
+/*_rootfs
 /.cache
 /work
