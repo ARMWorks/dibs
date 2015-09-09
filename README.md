@@ -14,20 +14,21 @@
 
 DIBS has several features along with building a debian root file system image.
 
-     ./dibs.sh <NAME> <COMMAND>
+     ./dibs.sh <NAME> <COMMAND> [ARG ...]
 
-NAME refers to the board, in this case nanopi, command is the command to be executed.
+NAME is the path to the image, excluding the file extension.
+COMMAND is the command to be executed.
 
 ##Commands##
 
-* **defconfig**
-    * Set config file to use.
+* **defconfig [TARGET]**
+    * Copies a default configuration file. TARGET specifies the configuration to use, if omitted the basename of NAME will be used.
 * **build**
     * Build Debian image.
 * **reconfigure**
-    * Applies changes made to config file, except adding packages.
+    * Re-runs do_configure and post_install tasks.
 * **shell**
-    * Open shell in Debian image
+    * Start a shell within the Debian image.
 * **tarball**
     * Create tar.gz of image.
 * **tarxz**
@@ -36,14 +37,14 @@ NAME refers to the board, in this case nanopi, command is the command to be exec
     * Run in qemu-system virtual machine.
 
 ##Examples##
-    # Set configuration
-    ./dibs.sh nanopi defconfig
+    # Copy default configuration
+    ./dibs.sh my-image defconfig nanopi
 
     # Build image
-    ./dibs.sh nanopi build
+    ./dibs.sh my-image build
 
     # Explore or modify root file system image
-    ./dib.sh nanopi shell
+    ./dib.sh my-image shell
 
     # Create tarball archive
-    ./dibs.sh nanopi tarball
+    ./dibs.sh my-image tarball

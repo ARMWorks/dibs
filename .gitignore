@@ -1,7 +1,6 @@
-/*
-!*.sh
-!/.git*
-!/default.conf
-!/targets
-!/qemu
-!README.md
+/*.img
+/*.conf
+/*.tar.gz
+/*.tar.xz
+/.cache
+/work

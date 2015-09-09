@@ -1,8 +1,6 @@
 #!/bin/bash
 
-TOP=$(dirname $(readlink -e "$0"))
-
-IMAGE_MB=512
+DIBS=$(dirname $(readlink -e "$0"))
 
 BUILT=1
 CLEANUP=0
@@ -17,19 +15,19 @@ run_as_user() {
 }
 
 require_conf() {
-    if [[ ! -f "${IMAGE}.conf" ]]; then
+    if [[ ! -f "${CONFIG}" ]]; then
         echo "You need a configuration file first! [Hint: use defconfig]"
         exit 1
     fi
 
-    source "${IMAGE}.conf"
+    source "${CONFIG}"
 
-    CACHE="${TOP}/.cache/$SYSTEM-$SUITE-$ARCH"
+    CACHE="${DIBS}/.cache/$SYSTEM-$SUITE-$ARCH"
 }
 
 require_image() {
-    if [ ! -f "$IMAGE" ]; then
-        echo "$IMAGE does not exist"
+    if [ ! -f "${IMAGE}" ]; then
+        echo "${IMAGE} does not exist"
         exit 1
     fi
 }
@@ -57,13 +55,13 @@ require_rootfs() {
     require_elevation
     CLEANUP=1
 
-    if [[ ! -f "$IMAGE" ]]; then
-        run_as_user dd if=/dev/zero "of=$IMAGE" bs=1M seek=$IMAGE_MB count=0 > /dev/null 2>&1
+    if [[ ! -f "${IMAGE}" ]]; then
+        run_as_user dd if=/dev/zero "of=${IMAGE}" bs=1M seek=$IMAGE_MB count=0 > /dev/null 2>&1
         mkfs -q -t ext4 "${IMAGE}"
     fi
 
     LOOP_DEVICE=$(losetup -f)
-    losetup -P $LOOP_DEVICE "$IMAGE"
+    losetup -P $LOOP_DEVICE "${IMAGE}"
     mkdir -p "$ROOTFS"
     mount -t ext4 $LOOP_DEVICE "$ROOTFS"
     mkdir -p "${ROOTFS}/proc"
@@ -126,7 +124,7 @@ cleanup() {
     fi
 
     if [[ $BUILT -ne 1 ]]; then
-        rm -f "$IMAGE"
+        rm -f "${IMAGE}"
     fi
 }
 
@@ -173,8 +171,8 @@ run_target() {
 }
 
 do_debootstrap() {
-    if [ -f "$IMAGE" ]; then
-        echo "$IMAGE already exists!"
+    if [ -f "${IMAGE}" ]; then
+        echo "${IMAGE} already exists!"
         exit 1
     fi
 
@@ -287,22 +285,26 @@ if [[ -z "$1" ]]; then
     show_usage
 fi
 
-IMAGE="$1"
-ROOTFS="$1_rootfs"
+
+NAME="$1"
+CONFIG="${NAME}.conf"
+IMAGE="${NAME}.img"
+ROOTFS="${NAME}_rootfs"
 
 case $2 in
     defconfig)
         if [[ "$3" ]]; then
             target="$3"
         else
-            target=$(basename "${IMAGE}")
+            target=$(basename "${NAME}")
         fi
-        if [[ -f "${TOP}/targets/${target}/default.conf" ]]; then
-            cp "${TOP}/targets/${target}/default.conf" "${IMAGE}.conf"
+        if [[ -f "${DIBS}/targets/${target}.conf" ]]; then
+            cp "${DIBS}/targets/${target}.conf" "${CONFIG}"
+            echo "\${DIBS}/targets/${target}.conf copied to ${CONFIG}"
         else
-            cp "${TOP}/default.conf" "${IMAGE}.conf"
+            cp "${DIBS}/targets/default.conf" "${CONFIG}"
+            echo "\${DIBS}/targets/default.conf copied to ${CONFIG}"
         fi
-        echo "${IMAGE}.conf written"
         ;;
     build)
         require_conf
@@ -322,17 +324,17 @@ case $2 in
     tarball)
         require_image
         require_rootfs
-        tar -cpzf "${IMAGE}.tar.gz" --one-file-system -C "$ROOTFS" --exclude "lost+found" .
+        tar -cpzf "${NAME}.tar.gz" --one-file-system -C "$ROOTFS" --exclude "lost+found" .
         if [[ -n $SUDO_USER ]]; then
-            chown $SUDO_USER "${IMAGE}.tar.gz"
+            chown $SUDO_USER "${NAME}.tar.gz"
         fi
         ;;
     tarxz)
         require_image
         require_rootfs
-        tar -cpJf "${IMAGE}.tar.xz" --one-file-system -C "$ROOTFS" --exclude "lost+found" .
+        tar -cpJf "${NAME}.tar.xz" --one-file-system -C "$ROOTFS" --exclude "lost+found" .
         if [[ -n $SUDO_USER ]]; then
-            chown $SUDO_USER "${IMAGE}.tar.xz"
+            chown $SUDO_USER "${NAME}.tar.xz"
         fi
         ;;
     qemu)
@@ -344,7 +346,7 @@ case $2 in
         fi
 
         try qemu-system-arm -machine vexpress-a9 -cpu cortex-a9 \
-            -kernel "${TOP}/qemu/vmlinuz-3.10.79.0-1-linaro-lsk-vexpress" \
+            -kernel "${DIBS}/qemu/vmlinuz-3.10.79.0-1-linaro-lsk-vexpress" \
             -append "root=/dev/mmcblk0 rw rootwait" \
             -drive "file=${IMAGE},if=sd,format=raw,cache=writeback"
         ;;
