@@ -293,18 +293,14 @@ ROOTFS="${NAME}_rootfs"
 
 case $2 in
     defconfig)
-        if [[ "$3" ]]; then
-            target="$3"
-        else
-            target=$(basename "${NAME}")
+        mkdir -p $(dirname "${NAME}")
+        target=${3:-$(basename "${NAME}")}
+        default="${DIBS}/targets/default.conf"
+        if [[ -r "${DIBS}/targets/${target}.conf" ]]; then
+            default="${DIBS}/targets/${target}.conf"
         fi
-        if [[ -f "${DIBS}/targets/${target}.conf" ]]; then
-            cp "${DIBS}/targets/${target}.conf" "${CONFIG}"
-            echo "\${DIBS}/targets/${target}.conf copied to ${CONFIG}"
-        else
-            cp "${DIBS}/targets/default.conf" "${CONFIG}"
-            echo "\${DIBS}/targets/default.conf copied to ${CONFIG}"
-        fi
+        cp "${default}" "${CONFIG}"
+        echo "\${DIBS}${default#${DIBS}} copied to ${CONFIG}"
         ;;
     build)
         require_conf
