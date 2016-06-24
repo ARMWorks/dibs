@@ -1,0 +1,22 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          tscal_check
+# Required-Start:    $all
+# Required-Stop:
+# X-Start-Before:
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Check for TSLib calibration.
+### END INIT INFO
+
+PTRCAL=/etc/pointercal
+
+case "$1" in
+    start)
+        if [ ! -f $PTRCAL ]; then
+            echo "No pointercal file, starting touchscreen calibration..."
+            . /etc/profile
+            /usr/bin/ts_calibrate > /dev/null 2>&1 &
+        fi
+    ;;
+esac
