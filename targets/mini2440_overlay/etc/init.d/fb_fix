@@ -1,0 +1,18 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          fb_fix
+# Required-Start:    $all
+# Required-Stop:
+# X-Start-Before:
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Disable cursor, screen saver and clear screen.
+### END INIT INFO
+
+case "$1" in
+    start)
+        echo -ne '\033[?17;0;0c' > /dev/tty1
+        echo -ne "\033[9;0]\033[14;0]" > /dev/tty1 
+        echo -ne '\033[2J' > /dev/tty1
+    ;;
+esac
