@@ -1,0 +1,33 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          firstboot
+# Required-Start:    $remote_fs $syslog
+# Required-Stop:
+# X-Start-Before:    dropbear
+# Default-Start:     S
+# Default-Stop:
+# Short-Description: First boot configuration.
+### END INIT INFO
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+test "$1" = "start" || exit 0
+
+EXPAND_ROOTFS=0
+MAKE_SWAP=1
+SWAP_SIZE=128
+
+test -f /boot/firstboot.txt && . /boot/firstboot.txt
+
+if [ "$EXPAND_ROOTFS" ] && [ $EXPAND_ROOTFS -gt 0 ]; then
+    if [ "$MAKE_SWAP" ] && [ $MAKE_SWAP -gt 0 ]; then
+        expand-rootfs.sh -s $SWAP_SIZE
+    else
+        expand-rootfs.sh
+    fi
+fi
+
+dpkg-reconfigure dropbear
+update-rc.d firstboot disable
+
+exit 0

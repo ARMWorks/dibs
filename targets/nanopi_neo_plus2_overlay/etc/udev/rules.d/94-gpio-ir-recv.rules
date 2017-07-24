@@ -1,0 +1,1 @@
+SUBSYSTEM=="input", ATTRS{name}=="gpio_ir_recv", SYMLINK+="input/gpio_ir_recv"
