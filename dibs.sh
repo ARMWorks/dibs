@@ -118,9 +118,9 @@ cleanup() {
         if [[ -d "${ROOTFS}/proc/1" ]]; then
             umount "${ROOTFS}/proc"
         fi
-        umount "$ROOTFS"
-        losetup --detach $LOOP_DEVICE
-        rmdir "$ROOTFS"
+        #umount "$ROOTFS"
+        #losetup --detach $LOOP_DEVICE
+        #rmdir "$ROOTFS"
     fi
 
     if [[ $BUILT -ne 1 ]]; then
