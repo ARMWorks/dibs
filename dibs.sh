@@ -208,13 +208,11 @@ do_debootstrap() {
 do_configure() {
     case $SYSTEM in
         debian)
-            cat > "${ROOTFS}/etc/apt/sources.list" << EOF
-deb http://httpredir.debian.org/debian $SUITE main contrib non-free
-#deb-src http://httpredir.debian.org/debain $SUITE main contrib non-free
+				cat > "${ROOTFS}/etc/apt/sources.list" << EOF
+deb http://httpredir.debian.org/debian/ $SUITE main contrib non-free
 deb http://httpredir.debian.org/debian/ $SUITE-updates main contrib non-free
-#deb-src http://httpredir.debian.org/debian/ stretch-updates main
-deb http://security.debian.org/debian-security $SUITE/updates main contrib non-free
-#deb-src http://security.debian.org/debian-security $SUITE/updates main
+deb http://httpredir.debian.org/debian/ $SUITE-backports main contrib non-free
+deb http://security.debian.org/ $SUITE/updates main contrib non-free
 EOF
             ;;
         *)
