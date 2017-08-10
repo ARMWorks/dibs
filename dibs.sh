@@ -118,9 +118,9 @@ cleanup() {
         if [[ -d "${ROOTFS}/proc/1" ]]; then
             umount "${ROOTFS}/proc"
         fi
-        umount "$ROOTFS"
-        losetup --detach $LOOP_DEVICE
-        rmdir "$ROOTFS"
+        #umount "$ROOTFS"
+        #losetup --detach $LOOP_DEVICE
+        #rmdir "$ROOTFS"
     fi
 
     if [[ $BUILT -ne 1 ]]; then
@@ -209,16 +209,13 @@ do_configure() {
     case $SYSTEM in
         debian)
             cat > "${ROOTFS}/etc/apt/sources.list" << EOF
-deb http://mirrors.kernel.org/debian $SUITE main contrib non-free
-#deb-src http://mirrors.kernel.org/debain $SUITE main contrib non-free
+deb http://httpredir.debian.org/debian $SUITE main contrib non-free
+#deb-src http://httpredir.debian.org/debain $SUITE main contrib non-free
+deb http://httpredir.debian.org/debian/ $SUITE-updates main
+#deb-src http://httpredir.debian.org/debian/ stretch-updates main
+deb http://security.debian.org/debian-security $SUITE/updates main
+deb-src http://security.debian.org/debian-security $SUITE/updates main
 EOF
-
-            if [[ $SUITE != "experimental" ]]; then
-                cat >> "${ROOTFS}/etc/apt/sources.list" << EOF
-deb http://security.debian.org $SUITE/updates main contrib non-free
-#deb-src http://security.debian.org $SUITE/updates main contrib non-free
-EOF
-            fi
             ;;
         *)
             ;;

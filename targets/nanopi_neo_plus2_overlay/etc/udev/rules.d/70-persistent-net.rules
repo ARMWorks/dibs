@@ -1,0 +1,3 @@
+
+# Unknown net device (/devices/platform/soc/1c10000.mmc/mmc_host/mmc2/mmc2:0001/mmc2:0001:1/net/wlan0) (brcmfmac)
+SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{address}=="ac:83:f3:49:e0:0c", ATTR{dev_id}=="0x0", ATTR{type}=="1", KERNEL=="wlan*", NAME="wlan0"
