@@ -211,10 +211,10 @@ do_configure() {
             cat > "${ROOTFS}/etc/apt/sources.list" << EOF
 deb http://httpredir.debian.org/debian $SUITE main contrib non-free
 #deb-src http://httpredir.debian.org/debain $SUITE main contrib non-free
-deb http://httpredir.debian.org/debian/ $SUITE-updates main
+deb http://httpredir.debian.org/debian/ $SUITE-updates main contrib non-free
 #deb-src http://httpredir.debian.org/debian/ stretch-updates main
-deb http://security.debian.org/debian-security $SUITE/updates main
-deb-src http://security.debian.org/debian-security $SUITE/updates main
+deb http://security.debian.org/debian-security $SUITE/updates main contrib non-free
+#deb-src http://security.debian.org/debian-security $SUITE/updates main
 EOF
             ;;
         *)
