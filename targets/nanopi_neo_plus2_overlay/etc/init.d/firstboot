@@ -27,7 +27,6 @@ if [ "$EXPAND_ROOTFS" ] && [ $EXPAND_ROOTFS -gt 0 ]; then
     fi
 fi
 
-dpkg-reconfigure dropbear
 update-rc.d firstboot disable
 
 exit 0
