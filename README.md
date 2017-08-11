@@ -6,7 +6,7 @@
  * qemu-user-static
 
 ##Install##
-    sudo apt-get install debootstrap qemu-user-static
+    sudo apt-get install debootstrap qemu qemu-user-static git
     git clone https://github.com/ARMWorks/dibs.git
     cd dibs
 
