@@ -1,16 +1,21 @@
-#Debian Image Build System#
+# Debian Image Build System #
 
-##Requirements##
+## Requirements ##
 
  * debootstrap
  * qemu-user-static
 
+<<<<<<< HEAD
 ##Install##
     sudo apt-get install debootstrap qemu qemu-user-static git
+=======
+## Install ##
+    sudo apt-get install debootstrap qemu-user-static
+>>>>>>> refs/remotes/ARMWorks/master
     git clone https://github.com/ARMWorks/dibs.git
     cd dibs
 
-##Usage##
+## Usage ##
 
 DIBS has several features along with building a debian root file system image.
 
@@ -19,7 +24,7 @@ DIBS has several features along with building a debian root file system image.
 NAME is the path to the image, excluding the file extension.
 COMMAND is the command to be executed.
 
-##Commands##
+## Commands ##
 
 * **defconfig [TARGET]**
     * Copies a default configuration file. TARGET specifies the configuration to use, if omitted the basename of NAME will be used.
@@ -36,7 +41,7 @@ COMMAND is the command to be executed.
 * **qemu**
     * Run in qemu-system virtual machine.
 
-##Examples##
+## Examples ##
     # Copy default configuration
     ./dibs.sh my-image defconfig nanopi
 
