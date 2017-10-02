@@ -1,0 +1,21 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          firstboot
+# Required-Start:    $remote_fs $syslog
+# Required-Stop:
+# X-Start-Before:    sshd
+# Default-Start:     S
+# Default-Stop:
+# Short-Description: First boot configuration.
+### END INIT INFO
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+test "$1" = "start" || exit 0
+
+#test -f /boot/firstboot.txt && . /boot/firstboot.txt
+
+/usr/bin/ssh-keygen -A
+update-rc.d firstboot disable
+
+exit 0

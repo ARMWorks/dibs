@@ -1,0 +1,2 @@
+SUBSYSTEM=="graphics", ATTRS{name}=="fb_st7789s", SYMLINK+="fb-st7789s"
+SUBSYSTEM=="graphics", ATTRS{name}=="fb_st7789v", SYMLINK+="fb-st7789s"

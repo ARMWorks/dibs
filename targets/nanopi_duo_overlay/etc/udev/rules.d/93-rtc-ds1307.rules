@@ -1,0 +1,1 @@
+SUBSYSTEM=="rtc", ATTRS{name}=="ds1307", SYMLINK+="rtc-ds1307"

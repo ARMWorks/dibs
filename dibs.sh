@@ -208,17 +208,12 @@ do_debootstrap() {
 do_configure() {
     case $SYSTEM in
         debian)
-            cat > "${ROOTFS}/etc/apt/sources.list" << EOF
-deb http://mirrors.kernel.org/debian $SUITE main contrib non-free
-#deb-src http://mirrors.kernel.org/debain $SUITE main contrib non-free
+			cat > "${ROOTFS}/etc/apt/sources.list" << EOF
+deb http://httpredir.debian.org/debian/ $SUITE main contrib non-free
+deb http://httpredir.debian.org/debian/ $SUITE-updates main contrib non-free
+deb http://httpredir.debian.org/debian/ $SUITE-backports main contrib non-free
+deb http://security.debian.org/ $SUITE/updates main contrib non-free
 EOF
-
-            if [[ $SUITE != "experimental" ]]; then
-                cat >> "${ROOTFS}/etc/apt/sources.list" << EOF
-deb http://security.debian.org $SUITE/updates main contrib non-free
-#deb-src http://security.debian.org $SUITE/updates main contrib non-free
-EOF
-            fi
             ;;
         *)
             ;;
@@ -285,7 +280,6 @@ if [[ -z "$1" ]]; then
     show_usage
 fi
 
-
 NAME="$1"
 CONFIG="${NAME}.conf"
 IMAGE="${NAME}.img"
@@ -340,7 +334,6 @@ case $2 in
             echo "Please install the qemu-system package"
             exit 1
         fi
-
         try qemu-system-arm -machine vexpress-a9 -cpu cortex-a9 \
             -kernel "${DIBS}/qemu/vmlinuz-3.10.79.0-1-linaro-lsk-vexpress" \
             -append "root=/dev/mmcblk0 rw rootwait" \

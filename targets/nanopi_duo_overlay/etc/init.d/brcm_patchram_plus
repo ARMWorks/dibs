@@ -1,0 +1,74 @@
+#!/bin/bash
+
+### BEGIN INIT INFO
+# Provides:             brcm_patchram_plus
+# Required-Start:       $remote_fs $syslog
+# Required-Stop:        $remote_fs $syslog
+# Default-Start:        2 3 4 5
+# Default-Stop:
+# Short-Description:    brcm_patchram_plus
+### END INIT INFO
+
+function reset_bt()
+{
+    BTWAKE=/proc/bluetooth/sleep/btwake
+    if [ -f ${BTWAKE} ]; then
+        echo 0 > ${BTWAKE}
+    fi
+    index=`rfkill list | grep $1 | cut -f 1 -d":"` 
+    if [[ -n ${index}} ]]; then
+        rfkill block ${index}
+        sleep 1
+        rfkill unblock ${index}
+        sleep 1
+    fi
+}
+
+case "$1" in
+    start|"")
+        index=`rfkill list | grep "sunxi-bt" | cut -f 1 -d":"`
+        brcm_try_log=/var/log/brcm/brcm_try.log
+        brcm_log=/var/log/brcm/brcm.log
+        brcm_err_log=/var/log/brcm/brcm_err.log
+        if [ -d /sys/class/rfkill/rfkill${index} ]; then
+            rm -rf ${brcm_log}
+            reset_bt "sunxi-bt"
+            [ -d /var/log/brcm ] || mkdir -p /var/log/brcm
+            chmod 0660 /sys/class/rfkill/rfkill${index}/state
+            chmod 0660 /sys/class/rfkill/rfkill${index}/type
+            chgrp dialout /sys/class/rfkill/rfkill${index}/state
+            chgrp dialout /sys/class/rfkill/rfkill${index}/type
+            MACADDRESS=`md5sum /sys/class/sunxi_info/sys_info | cut -b 1-12 | sed -r ':1;s/(.*[^:])([^:]{2})/\1:\2/;t1'`
+            let TIMEOUT=150
+            while [ ${TIMEOUT} -gt 0 ]; do
+                killall -9 /bin/brcm_patchram_plus
+                /bin/brcm_patchram_plus -d --patchram /lib/firmware/ap6212/ --enable_hci --bd_addr ${MACADDRESS} --no2bytes --tosleep 5000 /dev/ttyS3 >${brcm_log} 2>&1 &
+                sleep 30
+                TIMEOUT=$((TIMEOUT-30))
+                cur_time=`date "+%H-%M-%S"`
+                if grep "Done setting line discpline" ${brcm_log}; then
+                    echo "${cur_time}: bt firmware download ok(${TIMEOUT})" >> ${brcm_try_log}
+                    if ! grep "fail" ${brcm_try_log}; then
+                        reset_bt "hci0"
+                        hciconfig hci0 up
+                        hciconfig >> ${brcm_try_log}    
+                        #reboot
+                    fi
+                    break
+                else
+                    echo "${cur_time}: bt firmware download fail(${TIMEOUT})" >> ${brcm_try_log}
+                    cp ${brcm_log} ${brcm_err_log}
+                    reset_bt "sunxi-bt"
+                fi
+            done
+        fi
+        ;;
+
+    stop)
+    kill `ps --no-headers -C brcm_patchram_plus -o pid`
+        ;;
+    *)
+        echo "Usage: brcm_patchram_plus start|stop" >&2
+        exit 3
+        ;;
+esac
