@@ -1,0 +1,3 @@
+[submodule "tools/kconfig-frontends"]
+	path = tools/kconfig-frontends
+	url = git://ymorin.is-a-geek.org/kconfig-frontends
