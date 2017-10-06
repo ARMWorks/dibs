@@ -1,5 +1,8 @@
 dibs_root = $(dir $(abspath $(lastword $(MAKEFILE_LIST))/..))
 
+all:
+	#do nothing
+
 $(dibs_root)host/bin/kconfig:$(dibs_root)tools/kconfig-frontends/Makefile
 	cd $(dibs_root)tools/kconfig-frontends; make install
 
