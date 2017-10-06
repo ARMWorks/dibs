@@ -1,0 +1,44 @@
+#!/bin/bash
+
+function dibs_init() {
+	if [[ -n "$1" ]] ; then
+		board="$1"
+		if [[ ! -d "$DIBS_ROOT/boards/$board" ]] ; then
+			echo "Board \"$board\" does not exist, aborting."
+			return
+		fi
+		cp -r "${DIBS_ROOT}/boards/${board}/"* .
+	fi
+	ln -s "${DIBS_ROOT}/kconfig"
+}
+
+function dibs_config() {
+	if [[ ! -h "kconfig" ]] ; then
+		echo "DIBS environment not found. Try \"dibs init\"."
+	fi
+	kconfig mconf kconfig/Kconfig
+}
+
+function show_usage() {
+	echo "Usage: TODO"
+}
+
+if [[ ${DIBS_ROOT} == ${PWD} ]] ; then
+	echo "Cannot work in DIBS root, create and change to a directory first"
+	exit
+fi
+
+command=$1
+case $command in
+	init)
+		dibs_init "${@:2}"
+		;;
+
+	config)
+		dibs_config "${@:2}"
+		;;
+	*)
+		show_usage
+		;;
+esac
+

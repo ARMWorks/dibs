@@ -1,0 +1,28 @@
+mainmenu "DIBS"
+
+choice ARCH
+	prompt "Architecture"
+	config ARCH_AMD64
+		bool "amd64"
+	config ARCH_ARMEL
+		bool "armel"
+	config ARCH_ARMHF
+		bool "armhf"
+	config ARCH_ARM64
+		bool "arm64"
+	config ARCH_I386
+		bool "i386"
+endchoice
+
+choice BOARD
+	prompt "Board"
+	config BOARD_NANOPI
+		bool "NanoPi"
+		depends on ARCH_ARMEL
+	config BOARD_NANOPI2
+		bool "NanoPi 2"
+		depends on ARCH_ARMEL || ARCH_ARMHF
+endchoice
+
+source "kconfig/Kconfig.nanopi"
+
