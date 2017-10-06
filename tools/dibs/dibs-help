@@ -1,0 +1,28 @@
+#!/bin/bash
+
+case $1 in
+	config)
+		;;
+
+	help)
+		echo "help: help [command ...]"
+		echo "    Display information about DIBS commands."
+		echo ""
+		echo "    If command is not known, fallback to 'builtin help'"
+		;;
+
+	init)
+		;;
+
+	"")
+		echo "DIBS commands:"
+		echo " config"
+		echo " help"
+		echo " init"
+		;;
+
+	*)
+		builtin help "$@"
+		;;
+esac
+

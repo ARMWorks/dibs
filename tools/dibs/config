@@ -1,0 +1,13 @@
+#!/bin/bash
+
+if [[ "$DIBS_ROOT" == "$PWD" ]] ; then
+	echo "Cannot work in DIBS root, create and change to a directory first"
+	exit
+fi
+
+if [[ ! -h "kconfig" ]] ; then
+	echo "DIBS environment not found. Try \"dibs init\"."
+fi
+
+kconfig mconf kconfig/Kconfig
+
