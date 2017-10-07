@@ -7,8 +7,40 @@ fi
 
 source ${DIBS_ROOT}/tools/dibs/config-vars
 
-echo $config_arch
-echo $config_board
-echo $config_distro
-echo $config_release
-echo $config_use_sysvinit
+workspace=$(readlink -f ${PWD})
+
+if [[ "$1" == "clean" ]] ; then
+	rm -f multistrap.conf
+	fakeroot -i .fakeroot -s .fakeroot rm -r rootfs
+fi
+
+if [[ ! -f multistrap.conf ]] ; then
+	if [[ "$config_distro" == "debian" ]] ; then
+		cat > "multistrap.conf" << EOF
+[General]
+unpack=true
+bootstrap=Debian
+aptsources=Debian
+cleanup=true
+arch=${config_arch}
+directory=rootfs
+retainsources=pkgcache
+
+[Debian]
+source=http://deb.debian.org/debian
+keyring=debian-archive-keyring
+suite=${config_release}
+EOF
+	elif [[ "$config_distro" == "ubuntu" ]] ; then
+		echo "Ubuntu isn't supported yet, sorry :("
+	fi
+fi
+
+if [[ -d pkgcache ]] ; then
+	fakeroot -i .fakeroot -s .fakeroot mkdir -p rootfs/var/cache/apt/archives
+	fakeroot -i .fakeroot -s .fakeroot cp pkgcache/* rootfs/var/cache/apt/archives
+fi
+
+fakeroot -i .fakeroot -s .fakeroot mkdir -p pkgcache rootfs
+fakeroot -i .fakeroot -s .fakeroot /usr/sbin/multistrap -f multistrap.conf
+

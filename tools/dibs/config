@@ -9,5 +9,5 @@ if [[ ! -h "kconfig" ]] ; then
 	echo "DIBS environment not found. Try \"init\"."
 fi
 
-kconfig-mconf kconfig/Kconfig
+exec kconfig-mconf kconfig/Kconfig
 
