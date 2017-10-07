@@ -1,6 +1,9 @@
 #!/bin/bash
 
-case $1 in
+case "$1" in
+	build)
+		;;
+
 	config)
 		;;
 
@@ -16,6 +19,7 @@ case $1 in
 
 	"")
 		echo "DIBS commands:"
+		echo " build"
 		echo " config"
 		echo " help"
 		echo " init"

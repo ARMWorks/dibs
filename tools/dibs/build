@@ -1,0 +1,14 @@
+#!/bin/bash
+
+if [[ "$DIBS_ROOT" == "$PWD" ]] ; then
+	echo "Cannot work in DIBS root, please create and change to a directory first"
+	exit
+fi
+
+source ${DIBS_ROOT}/tools/dibs/config-vars
+
+echo $config_arch
+echo $config_board
+echo $config_distro
+echo $config_release
+echo $config_use_sysvinit

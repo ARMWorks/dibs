@@ -1,0 +1,55 @@
+# This file is meant to be sourced. It reads in configuration from .config and
+# populates their respective variables to be used elsewhere.
+
+if [[ ! -f ".config" ]] ; then
+	echo "Config file missing. Try \"config\"."
+fi
+
+config_arch=""
+if [[ "y" == "$(kconfig-tweak -s CONFIG_ARCH_AMD64)" ]] ; then
+	config_arch="amd64"
+elif [[ "y" == "$(kconfig-tweak -s CONFIG_ARCH_ARM64)" ]] ; then
+	config_arch="arm64"
+elif [[ "y" == "$(kconfig-tweak -s CONFIG_ARCH_ARMEL)" ]] ; then
+	config_arch="armel"
+elif [[ "y" == "$(kconfig-tweak -s CONFIG_ARCH_ARMHF)" ]] ; then
+	config_arch="armhf"
+elif [[ "y" == "$(kconfig-tweak -s CONFIG_ARCH_I386)" ]] ; then
+	config_arch="i386"
+fi
+
+config_board=""
+if [[ "y" == "$(kconfig-tweak -s CONFIG_BOARD_NANOPI)" ]] ; then
+	config_board="nanopi"
+elif [[ "y" == "$(kconfig-tweak -s CONFIG_BOARD_NANOPI2)" ]] ; then
+	config_board="nanopi2"
+fi
+
+config_distro=""
+config_release=""
+if [[ "y" == "$(kconfig-tweak -s CONFIG_DISTRO_DEBIAN)" ]] ; then
+	config_distro="debian"
+	if [[ "y" == "$(kconfig-tweak -s CONFIG_RELEASE_DEBIAN_WHEEZY)" ]]; then
+		config_release="wheezy"
+	elif [[ "y" == "$(kconfig-tweak -s CONFIG_RELEASE_DEBIAN_JESSIE)" ]]; then
+		config_release="jessie"
+	elif [[ "y" == "$(kconfig-tweak -s CONFIG_RELEASE_DEBIAN_STRETCH)" ]]; then
+		config_release="stretch"
+	elif [[ "y" == "$(kconfig-tweak -s CONFIG_RELEASE_DEBIAN_TESTING)" ]]; then
+		config_release="testing"
+	fi
+elif [[ "y" == "$(kconfig-tweak -s CONFIG_DISTRO_UBUNTU)" ]] ; then
+	config_distro="ubuntu"
+	if [[ "y" == "$(kconfig-tweak -s CONFIG_RELEASE_UBUNTU_TRUSTY)" ]]; then
+		config_release="trusty"
+	elif [[ "y" == "$(kconfig-tweak -s CONFIG_RELEASE_UBUNTU_XENIAL)" ]]; then
+		config_release="xenial"
+	elif [[ "y" == "$(kconfig-tweak -s CONFIG_RELEASE_UBUNTU_ZESTY)" ]]; then
+		config_release="zesty"
+	elif [[ "y" == "$(kconfig-tweak -s CONFIG_RELEASE_UBUNTU_ARTFUL)" ]]; then
+		config_release="artful"
+	fi
+fi
+
+config_use_sysvinit="$(kconfig-tweak -s CONFIG_USE_SYSVINIT)"
+
