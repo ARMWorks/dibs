@@ -1,7 +1,17 @@
 #!/bin/bash
 
 case "$1" in
-	build)
+	bootstrap)
+		echo "bootstrap: bootstrap [clean]"
+		echo "    Run stage1 DIBS image creation."
+		echo
+		echo "    Runs multistrap on a configuration file, caching packages, "
+		echo "    and making a tarball of the resulting bootstrap system."
+		echo
+		echo "    The clean option removes the bootstrap directory, "
+		echo "    bootstrap.tar, configscript.sh, multistrap.conf, and preseed"
+		echo "    files before continuing.  If they exist already, they will "
+		echo "    be used for the multistrap process."
 		;;
 
 	config)
@@ -10,7 +20,7 @@ case "$1" in
 	help)
 		echo "help: help [command ...]"
 		echo "    Display information about DIBS commands."
-		echo ""
+		echo
 		echo "    If command is not known, fallback to 'builtin help'"
 		;;
 
@@ -19,7 +29,7 @@ case "$1" in
 
 	"")
 		echo "DIBS commands:"
-		echo " build"
+		echo " bootstrap"
 		echo " config"
 		echo " help"
 		echo " init"

@@ -30,6 +30,7 @@ choice DISTRO
 		bool "Debian"
 	config DISTRO_UBUNTU
 		bool "Ubuntu"
+		depends on ARCH_AMD64 || ARCH_I386
 endchoice
 
 if DISTRO_DEBIAN
