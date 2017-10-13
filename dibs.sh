@@ -22,6 +22,12 @@ require_conf() {
 
     source "${CONFIG}"
 
+    if [ "$ARCH" = "arm64" ]; then
+        QEMU_STATIC="qemu-aarch64-static"
+    else
+        QEMU_STATIC="qemu-arm-static"
+    fi
+
     CACHE="${DIBS}/.cache/$SYSTEM-$SUITE-$ARCH"
 }
 
@@ -75,13 +81,13 @@ require_qemu() {
     require_rootfs
     CLEANUP=2
 
-    if [[ -z $(which qemu-arm-static) ]]; then
-        echo "qemu-arm-static is missing"
+    if [[ -z $(which $QEMU_STATIC) ]]; then
+        echo "$QEMU_STATIC is missing"
         echo "Please install the qemu-user-static package"
         exit 1
     fi
 
-    local qemu_arm_static=$(which qemu-arm-static)
+    local qemu_arm_static=$(which $QEMU_STATIC)
     if [[ ! -f /proc/sys/fs/binfmt_misc/arm ]]; then
         CLEANUP_BINFMT=1
         if [[ ! -f /proc/sys/fs/binfmt_misc/register ]]; then
@@ -98,7 +104,7 @@ require_qemu() {
 
 cleanup() {
     if [[ $CLEANUP -ge 2 ]]; then
-        local qemu_arm_static=$(which qemu-arm-static)
+        local qemu_arm_static=$(which $QEMU_STATIC)
         rm "${ROOTFS}${qemu_arm_static}"
 
         if [[ $CLEANUP_BINFMT -ge 1 ]]; then
