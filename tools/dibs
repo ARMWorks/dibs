@@ -140,6 +140,7 @@ function dibs_regen()
 
 	local f="$workspace/config/multistrap.conf"
 	echo "[General]" > $f
+	echo "noauth=true" >> $f
 	echo "unpack=true" >> $f
 	echo "debootstrap=${config_distro^}" >> $f
 	echo "aptsources=${config_distro^}" >> $f
@@ -152,7 +153,6 @@ function dibs_regen()
 	if [[ "$config_distro" == "debian" ]] ; then
 		echo "[Debian]" >> $f
 		echo "source=http://deb.debian.org/debian" >> $f
-		echo "keyring=debian-archive-keyring" >> $f
 	elif [[ "$config_distro" == "ubuntu" ]] ; then
 		echo "[Ubuntu]" >> $f
 		if [[ "$config_arch" != "amd64" ]] && [[ "$config_arch" != "i386" ]] ; then
@@ -160,7 +160,6 @@ function dibs_regen()
 		else
 			echo "source=http://archive.ubuntu.com/ubuntu" >> $f
 		fi
-		echo "keyring=ubuntu-keyring" >> $f
 	fi
 	echo "suite=$config_release" >> $f
 }
