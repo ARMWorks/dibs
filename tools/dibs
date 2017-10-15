@@ -19,7 +19,7 @@ workspace="$(readlink -f "${PWD}")"
 KCONFIG_CONFIG="$workspace/config/config"
 export KCONFIG_CONFIG
 
-function config()
+function dibs_config()
 {
 	local board=$1
 
@@ -42,7 +42,7 @@ function config()
 	kconfig-mconf dibs/Kconfig
 
 	if [[ -f config/config ]] ; then
-		regen
+		dibs_regen
 	fi
 }
 
@@ -102,7 +102,7 @@ function read_config()
 	config_use_sysvinit="$(kconfig-tweak --file "$workspace/config/config" -s USE_SYSVINIT)"
 }
 
-function regen()
+function dibs_regen()
 {
 	read_config
 	
@@ -191,7 +191,7 @@ function uninstall_static_qemu()
 	fi
 }
 
-function build()
+function dibs_build()
 {
 	read_config
 
@@ -212,7 +212,7 @@ function build()
 	rm -r rootfs
 }	
 
-function shell()
+function dibs_shell()
 {
 	read_config
 
@@ -231,7 +231,33 @@ function shell()
 	rm -rf rootfs
 }
 
-function help()
+function dibs_untar()
+{
+	if [[ ! -f rootfs.tar ]] ; then
+		echo "rootfs.tar not found!  Have you ran \"dibs build\" yet?"
+		exit
+	fi
+
+	mkdir rootfs
+	cd rootfs
+	tar -xf ../rootfs.tar
+}
+
+function dibs_tar()
+{
+	if [[ ! -d rootfs ]] ; then
+		echo "No extracted filesystem found. Did you run \"dibs untar\"?"
+		exit
+	fi
+
+	cd rootfs
+	tar -cf ../rootfs.tar .
+	cd ..
+	rm -rf rootfs
+}
+
+
+function dibs_help()
 {
 	command=$1
 	case "$1" in
@@ -252,12 +278,22 @@ function help()
 			echo "shell: dibs shell"
 			echo "    Starts a chroot shell in the rootfs."
 			;;
+		tar)
+			echo "tar: dibs tar"
+			echo "    Makes a rootfs.tar from the contents of a rootfs directory."
+			;;
+		untar)
+			echo "untar: dibs untar"
+			echo "    Extracts a rootfs.tar file into a rootfs directory."
+			;;
 		*)
 			echo "Usage:"
 			echo " build"
 			echo " config [board]"
 			echo " regen"
 			echo " shell"
+			echo " tar"
+			echo " untar"
 			;;
 	esac
 }
@@ -267,22 +303,25 @@ shift
 
 case "$command" in
 	config)
-		config "$@"
+		dibs_config "$@"
 		;;
 	regen)
-		regen "$@"
+		dibs_regen "$@"
 		;;
 	build)
-		build "$@"
+		dibs_build "$@"
 		;;
 	shell)
-		shell "$@"
+		dibs_shell "$@"
 		;;
-	help)
-		help "$@"
+	untar)
+		dibs_untar "$@"
 		;;
-	"")
-		help "$@"
+	tar)
+		dibs_tar "$@"
+		;;
+	help|"")
+		dibs_help "$@"
 		;;
 	*)
 		echo "Unknown command, see \"dibs help\"."
