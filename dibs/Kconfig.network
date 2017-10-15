@@ -1,0 +1,5 @@
+menu "Network"
+	config NETWORK_HOSTNAME
+		string "Hostname"
+		default "dibs"
+endmenu

@@ -15,6 +15,10 @@ if [[ "$DIBS_ROOT" == "$PWD" ]] ; then
 	exit
 fi
 
+workspace="$(readlink -f "${PWD}")"
+KCONFIG_CONFIG="$workspace/config/config"
+export KCONFIG_CONFIG
+
 function config()
 {
 	local board=$1
@@ -28,71 +32,74 @@ function config()
 		cp -r "$DIBS_ROOT/boards/$board/"* .
 		shopt -u dotglob
 	fi
-	if [[ ! -f "kconfig" ]] ; then
-		ln -sf "$DIBS_ROOT/kconfig"
+	if [[ ! -f "config" ]] ; then
+		mkdir config
+	fi
+	if [[ ! -f "dibs" ]] ; then
+		ln -sf "$DIBS_ROOT/dibs"
 	fi
 
-	kconfig-mconf kconfig/Kconfig
+	kconfig-mconf dibs/Kconfig
 
-	if [[ -f .config ]] ; then
+	if [[ -f config ]] ; then
 		regen
 	fi
 }
 
 function read_config()
 {
-	if [[ ! -f ".config" ]] ; then
+	if [[ ! -f "$workspace/config/config" ]] ; then
 		echo "Config not found. Try \"dibs config\"."
 		exit
 	fi
 
 	config_arch=""
-	if [[ "y" == "$(kconfig-tweak -s CONFIG_ARCH_AMD64)" ]] ; then
+	if [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s ARCH_AMD64)" ]] ; then
 		config_arch="amd64"
-	elif [[ "y" == "$(kconfig-tweak -s CONFIG_ARCH_ARM64)" ]] ; then
+	elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s ARCH_ARM64)" ]] ; then
 		config_arch="arm64"
-	elif [[ "y" == "$(kconfig-tweak -s CONFIG_ARCH_ARMEL)" ]] ; then
+	elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s ARCH_ARMEL)" ]] ; then
 		config_arch="armel"
-	elif [[ "y" == "$(kconfig-tweak -s CONFIG_ARCH_ARMHF)" ]] ; then
+	elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s ARCH_ARMHF)" ]] ; then
 		config_arch="armhf"
-	elif [[ "y" == "$(kconfig-tweak -s CONFIG_ARCH_I386)" ]] ; then
+	elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s ARCH_I386)" ]] ; then
 		config_arch="i386"
 	fi
 
 	config_board=""
-	if [[ "y" == "$(kconfig-tweak -s CONFIG_BOARD_NANOPI)" ]] ; then
+	if [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s BOARD_NANOPI)" ]] ; then
 		config_board="nanopi"
-	elif [[ "y" == "$(kconfig-tweak -s CONFIG_BOARD_NANOPI2)" ]] ; then
+	elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s BOARD_NANOPI2)" ]] ; then
 		config_board="nanopi2"
 	fi
 
 	config_distro=""
 	config_release=""
-	if [[ "y" == "$(kconfig-tweak -s CONFIG_DISTRO_DEBIAN)" ]] ; then
+	if [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s DISTRO_DEBIAN)" ]] ; then
 		config_distro="debian"
-		if [[ "y" == "$(kconfig-tweak -s CONFIG_RELEASE_DEBIAN_WHEEZY)" ]]; then
+		if [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s RELEASE_DEBIAN_WHEEZY)" ]]; then
 			config_release="wheezy"
-		elif [[ "y" == "$(kconfig-tweak -s CONFIG_RELEASE_DEBIAN_JESSIE)" ]]; then
+		elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s RELEASE_DEBIAN_JESSIE)" ]]; then
 			config_release="jessie"
-		elif [[ "y" == "$(kconfig-tweak -s CONFIG_RELEASE_DEBIAN_STRETCH)" ]]; then
+		elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s RELEASE_DEBIAN_STRETCH)" ]]; then
 			config_release="stretch"
-		elif [[ "y" == "$(kconfig-tweak -s CONFIG_RELEASE_DEBIAN_TESTING)" ]]; then
+		elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s RELEASE_DEBIAN_TESTING)" ]]; then
 			config_release="testing"
 		fi
-	elif [[ "y" == "$(kconfig-tweak -s CONFIG_DISTRO_UBUNTU)" ]] ; then
+	elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s DISTRO_UBUNTU)" ]] ; then
 		config_distro="ubuntu"
-		if [[ "y" == "$(kconfig-tweak -s CONFIG_RELEASE_UBUNTU_TRUSTY)" ]]; then
+		if [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s RELEASE_UBUNTU_TRUSTY)" ]]; then
 			config_release="trusty"
-		elif [[ "y" == "$(kconfig-tweak -s CONFIG_RELEASE_UBUNTU_XENIAL)" ]]; then
+		elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s RELEASE_UBUNTU_XENIAL)" ]]; then
 			config_release="xenial"
-		elif [[ "y" == "$(kconfig-tweak -s CONFIG_RELEASE_UBUNTU_ZESTY)" ]]; then
+		elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s RELEASE_UBUNTU_ZESTY)" ]]; then
 			config_release="zesty"
-		elif [[ "y" == "$(kconfig-tweak -s CONFIG_RELEASE_UBUNTU_ARTFUL)" ]]; then
+		elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s RELEASE_UBUNTU_ARTFUL)" ]]; then
 			config_release="artful"
 		fi
 	fi
 
-	config_use_sysvinit="$(kconfig-tweak -s CONFIG_USE_SYSVINIT)"
+	config_use_sysvinit="$(kconfig-tweak --file "$workspace/config/config" -s USE_SYSVINIT)"
 }
 
 function regen()
@@ -102,13 +109,13 @@ function regen()
 	rm -rf config
 	mkdir -p config
 
-	local f="config/preseed"
+	local f="$workspace/config/preseed"
 	truncate -s 0 $f
 	if [[ "$config_use_sysvinit" == "y" ]]; then
 		echo "preseed/late_command=\"in-target apt-get install -y sysvinit-core\"" >> $f
 	fi
 
-	local f="config/config.sh"
+	local f="$workspace/config/config.sh"
 	echo "#!/bin/sh" > $f
 	echo >> $f
 	echo "set -e" >> $f
@@ -130,7 +137,7 @@ function regen()
 	echo "fi" >> $f
 	chmod 755 $f
 
-	local f="config/multistrap.conf"
+	local f="$workspace/config/multistrap.conf"
 	echo "[General]" >> $f
 	echo "unpack=true" >> $f
 	echo "debootstrap=${config_distro^}" >> $f
@@ -194,6 +201,8 @@ function build()
 	mkdir -p rootfs
 	multistrap -f config/multistrap.conf
 	cd rootfs
+
+	source ../dibs/network
 
 	install_static_qemu
 
@@ -260,9 +269,6 @@ command=$1
 shift
 
 case "$command" in
-	init)
-		init "$@"
-		;;
 	config)
 		config "$@"
 		;;

@@ -1,0 +1,4 @@
+config_network_hostname="$(kconfig-tweak --file "$workspace/config/config" -s NETWORK_HOSTNAME)"
+
+echo "$config_network_hostname" > etc/hostname
+

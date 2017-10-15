@@ -66,5 +66,7 @@ config USE_SYSVINIT
 	bool "Use sysvinit instead of systemd"
 	depends on RELEASE_DEBIAN_JESSIE || RELEASE_DEBIAN_STRETCH || RELEASE_DEBIAN_TESTING
 
-source "kconfig/Kconfig.nanopi"
+source "dibs/boards/nanopi/Kconfig"
+
+source "dibs/Kconfig.network"
 
