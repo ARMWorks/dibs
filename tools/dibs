@@ -67,10 +67,14 @@ function read_config()
 	fi
 
 	config_board=""
-	if [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s BOARD_NANOPI)" ]] ; then
+	if [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s BOARD_GENERIC)" ]] ; then
+		config_board="generic"
+	elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s BOARD_NANOPI)" ]] ; then
 		config_board="nanopi"
 	elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s BOARD_NANOPI2)" ]] ; then
 		config_board="nanopi2"
+	elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s BOARD_NANOPI_NEO_PLUS2)" ]] ; then
+		config_board="nanopi_neo_plus2"
 	fi
 
 	config_distro=""
@@ -214,6 +218,11 @@ function dibs_build()
 
 function dibs_shell()
 {
+	if [[ ! -f rootfs.tar ]] ; then
+		echo "rootfs.tar not found!  Have you ran \"dibs build\" yet?"
+		exit
+	fi
+
 	read_config
 
 	mkdir rootfs

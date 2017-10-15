@@ -2,12 +2,20 @@
 
 ## Requirements ##
 
+ * autoconf
+ * automake
+ * bison
  * build-essential
+ * flex
+ * git
+ * gperf
+ * libtool
  * multistrap
+ * ncurses-dev
  * qemu-user-static
 
 ## Install ##
-    sudo apt-get install build-essential multistrap qemu-user-static
+    sudo apt-get install autoconf automake bison build-essential flex git gperf libtool multistrap ncurses-dev qemu-user-static
     git clone --recursive https://github.com/ARMWorks/dibs.git
     cd dibs
 

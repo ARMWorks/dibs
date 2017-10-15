@@ -1,28 +1,39 @@
 mainmenu "DIBS"
 
+choice BOARD
+	prompt "Board"
+	config BOARD_GENERIC
+		bool "Generic Board"
+	config BOARD_NANOPI
+		bool "FriendlyElec NanoPi"
+		imply ARCH_ARMEL
+	config BOARD_NANOPI2
+		bool "FriendlyElec NanoPi 2"
+		imply ARCH_ARMHF
+	config BOARD_NANOPI_NEO_PLUS2
+		bool "FriendlyElec NanoPi NEO Plus2"
+		imply ARCH_ARM64
+endchoice
+
 choice ARCH
 	prompt "Architecture"
 	config ARCH_AMD64
 		bool "amd64"
+		depends on BOARD_GENERIC
 	config ARCH_ARM64
 		bool "arm64"
+		depends on BOARD_GENERIC || BOARD_NANOPI_NEO_PLUS2
 	config ARCH_ARMEL
 		bool "armel"
+		depends on BOARD_GENERIC || BOARD_NANOPI || BOARD_NANOPI2
 	config ARCH_ARMHF
 		bool "armhf"
+		depends on BOARD_GENERIC || BOARD_NANOPI2
 	config ARCH_I386
 		bool "i386"
+		depends on BOARD_GENERIC
 endchoice
 
-choice BOARD
-	prompt "Board"
-	config BOARD_NANOPI
-		bool "NanoPi"
-		depends on ARCH_ARMEL
-	config BOARD_NANOPI2
-		bool "NanoPi 2"
-		depends on ARCH_ARMEL || ARCH_ARMHF
-endchoice
 
 choice DISTRO
 	prompt "Distro"
