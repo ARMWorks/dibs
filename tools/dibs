@@ -1,0 +1,288 @@
+#!/bin/bash
+
+if [[ -z "$DIBS_ROOT" ]] ; then
+	echo "DIBS_ROOT is not set."
+	exit
+fi
+
+if [[ $(id -u) -ne 0 ]] ; then
+	echo "This script should be ran as root."
+	exit
+fi
+
+if [[ "$DIBS_ROOT" == "$PWD" ]] ; then
+	echo "Cannot work in DIBS root. Please create a directory to use as a workspace."
+	exit
+fi
+
+function config()
+{
+	local board=$1
+
+	if [[ -n "$board" ]] ; then
+		if [[ ! -d "$DIBS_ROOT/boards/$board" ]] ; then
+			echo "Board \"$board\" does not exist, aborting."
+			return
+		fi
+		shopt -s dotglob
+		cp -r "$DIBS_ROOT/boards/$board/"* .
+		shopt -u dotglob
+	fi
+	if [[ ! -f "kconfig" ]] ; then
+		ln -sf "$DIBS_ROOT/kconfig"
+	fi
+
+	kconfig-mconf kconfig/Kconfig
+
+	if [[ -f .config ]] ; then
+		regen
+	fi
+}
+
+function read_config()
+{
+	if [[ ! -f ".config" ]] ; then
+		echo "Config not found. Try \"dibs config\"."
+		exit
+	fi
+
+	config_arch=""
+	if [[ "y" == "$(kconfig-tweak -s CONFIG_ARCH_AMD64)" ]] ; then
+		config_arch="amd64"
+	elif [[ "y" == "$(kconfig-tweak -s CONFIG_ARCH_ARM64)" ]] ; then
+		config_arch="arm64"
+	elif [[ "y" == "$(kconfig-tweak -s CONFIG_ARCH_ARMEL)" ]] ; then
+		config_arch="armel"
+	elif [[ "y" == "$(kconfig-tweak -s CONFIG_ARCH_ARMHF)" ]] ; then
+		config_arch="armhf"
+	elif [[ "y" == "$(kconfig-tweak -s CONFIG_ARCH_I386)" ]] ; then
+		config_arch="i386"
+	fi
+
+	config_board=""
+	if [[ "y" == "$(kconfig-tweak -s CONFIG_BOARD_NANOPI)" ]] ; then
+		config_board="nanopi"
+	elif [[ "y" == "$(kconfig-tweak -s CONFIG_BOARD_NANOPI2)" ]] ; then
+		config_board="nanopi2"
+	fi
+
+	config_distro=""
+	config_release=""
+	if [[ "y" == "$(kconfig-tweak -s CONFIG_DISTRO_DEBIAN)" ]] ; then
+		config_distro="debian"
+		if [[ "y" == "$(kconfig-tweak -s CONFIG_RELEASE_DEBIAN_WHEEZY)" ]]; then
+			config_release="wheezy"
+		elif [[ "y" == "$(kconfig-tweak -s CONFIG_RELEASE_DEBIAN_JESSIE)" ]]; then
+			config_release="jessie"
+		elif [[ "y" == "$(kconfig-tweak -s CONFIG_RELEASE_DEBIAN_STRETCH)" ]]; then
+			config_release="stretch"
+		elif [[ "y" == "$(kconfig-tweak -s CONFIG_RELEASE_DEBIAN_TESTING)" ]]; then
+			config_release="testing"
+		fi
+	elif [[ "y" == "$(kconfig-tweak -s CONFIG_DISTRO_UBUNTU)" ]] ; then
+		config_distro="ubuntu"
+		if [[ "y" == "$(kconfig-tweak -s CONFIG_RELEASE_UBUNTU_TRUSTY)" ]]; then
+			config_release="trusty"
+		elif [[ "y" == "$(kconfig-tweak -s CONFIG_RELEASE_UBUNTU_XENIAL)" ]]; then
+			config_release="xenial"
+		elif [[ "y" == "$(kconfig-tweak -s CONFIG_RELEASE_UBUNTU_ZESTY)" ]]; then
+			config_release="zesty"
+		elif [[ "y" == "$(kconfig-tweak -s CONFIG_RELEASE_UBUNTU_ARTFUL)" ]]; then
+			config_release="artful"
+		fi
+	fi
+
+	config_use_sysvinit="$(kconfig-tweak -s CONFIG_USE_SYSVINIT)"
+}
+
+function regen()
+{
+	read_config
+	
+	rm -rf config
+	mkdir -p config
+
+	local f="config/preseed"
+	truncate -s 0 $f
+	if [[ "$config_use_sysvinit" == "y" ]]; then
+		echo "preseed/late_command=\"in-target apt-get install -y sysvinit-core\"" >> $f
+	fi
+
+	local f="config/config.sh"
+	echo "#!/bin/sh" > $f
+	echo >> $f
+	echo "set -e" >> $f
+	echo "export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true" >> $f
+	echo "export LC_ALL=C LANGUAGE=C LANG=C" >> $f
+	echo "/var/lib/dpkg/info/dash.preinst install" >> $f
+	echo "if [ -d /tmp/preseeds/ ]; then" >> $f
+	echo "	for file in \`ls -1 /tmp/preseeds/*\`; do" >> $f
+	echo "	debconf-set-selections \$file" >> $f
+	echo "	done" >> $f
+	echo "fi" >> $f
+	echo "dpkg --configure -a" >> $f
+	echo "mount proc -t proc /proc" >> $f
+	echo "dpkg --configure -a" >> $f
+	echo "umount /proc" >> $f
+	echo "rm /config.sh" >> $f
+	echo "if [ -d /tmp/preseeds ]; then" >> $f
+	echo "	rm -r /tmp/preseeds" >> $f
+	echo "fi" >> $f
+	chmod 755 $f
+
+	local f="config/multistrap.conf"
+	echo "[General]" >> $f
+	echo "unpack=true" >> $f
+	echo "debootstrap=${config_distro^}" >> $f
+	echo "aptsources=${config_distro^}" >> $f
+	echo "cleanup=true" >> $f
+	echo "arch=${config_arch}" >> $f
+	echo "directory=rootfs" >> $f
+	echo "debconfseed=config/preseed" >> $f
+	echo "configscript=config/config.sh" >> $f
+	echo >> $f
+	if [[ "$config_distro" == "debian" ]] ; then
+		echo "[Debian]" >> $f
+		echo "source=http://deb.debian.org/debian" >> $f
+		echo "keyring=debian-archive-keyring" >> $f
+	elif [[ "$config_distro" == "ubuntu" ]] ; then
+		echo "[Ubuntu]" >> $f
+		if [[ "$config_arch" != "amd64" ]] && [[ "$config_arch" != "i386" ]] ; then
+			echo "source=http://ports.ubuntu.com/ubuntu-ports" >> $f
+		else
+			echo "source=http://archive.ubuntu.com/ubuntu" >> $f
+		fi
+		echo "keyring=ubuntu-keyring" >> $f
+	fi
+	echo "suite=$config_release" >> $f
+}
+
+# assumes read_config has already been ran
+function install_static_qemu()
+{
+	if [[ "$PWD" == "/" ]] ; then
+		echo "install_static_qemu function cowardly refusing to run."
+		exit
+	fi
+
+	if [[ "$config_arch" == "armel" ]] || [[ "$config_arch" == "armhf" ]] ; then
+		cp /usr/bin/qemu-arm-static usr/bin
+	elif [[ "$config_arch" == "arm64" ]] ; then
+		cp /usr/bin/qemu-aarch64-static usr/bin
+	fi
+}
+
+# assumes read_config has already been ran
+function uninstall_static_qemu()
+{
+	if [[ "$PWD" == "/" ]] ; then
+		echo "uninstall_static_qemu function cowardly refusing to run."
+		exit
+	fi
+
+	if [[ "$config_arch" == "armel" ]] || [[ "$config_arch" == "armhf" ]] ; then
+		rm -f usr/bin/qemu-arm-static
+	elif [[ "$config_arch" == "arm64" ]] ; then
+		rm -f usr/bin/qemu-aarch64-static
+	fi
+}
+
+function build()
+{
+	read_config
+
+	mkdir -p rootfs
+	multistrap -f config/multistrap.conf
+	cd rootfs
+
+	install_static_qemu
+
+	chroot . /bin/bash ./config.sh
+
+	uninstall_static_qemu
+
+	tar -cf ../rootfs.tar .
+	cd ..
+	rm -r rootfs
+}	
+
+function shell()
+{
+	read_config
+
+	mkdir rootfs
+	cd rootfs
+	tar -xf ../rootfs.tar
+	
+	install_static_qemu
+
+	chroot . /bin/bash
+
+	uninstall_static_qemu
+
+	tar -cf ../rootfs.tar .
+	cd ..
+	rm -rf rootfs
+}
+
+function help()
+{
+	command=$1
+	case "$1" in
+		config)
+			echo "config: dibs config [board]"
+			echo "    Prepares a workspace and runs kconfig, optionally with a given board"
+			echo "    preset."
+			;;
+		regen)
+			echo "regen: dibs regen"
+			echo "    Rebuilds all configuration dependent files such as multistrap.conf."
+			;;
+		build)
+			echo "build: dibs build"
+			echo "    Runs multistrap and stage2 chroot processes."
+			;;
+		shell)
+			echo "shell: dibs shell"
+			echo "    Starts a chroot shell in the rootfs."
+			;;
+		*)
+			echo "Usage:"
+			echo " build"
+			echo " config [board]"
+			echo " regen"
+			echo " shell"
+			;;
+	esac
+}
+
+command=$1
+shift
+
+case "$command" in
+	init)
+		init "$@"
+		;;
+	config)
+		config "$@"
+		;;
+	regen)
+		regen "$@"
+		;;
+	build)
+		build "$@"
+		;;
+	shell)
+		shell "$@"
+		;;
+	help)
+		help "$@"
+		;;
+	"")
+		help "$@"
+		;;
+	*)
+		echo "Unknown command, see \"dibs help\"."
+		;;
+esac
+

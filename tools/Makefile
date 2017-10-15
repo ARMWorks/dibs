@@ -1,26 +1,24 @@
-dibs_root = $(dir $(abspath $(lastword $(MAKEFILE_LIST))/..))
-
 all:
 	#do nothing
 
-$(dibs_root)host/bin/kconfig:$(dibs_root)tools/kconfig-frontends/Makefile
-	cd $(dibs_root)tools/kconfig-frontends; make install
+$(DIBS_ROOT)/host/bin/kconfig:$(DIBS_ROOT)/tools/kconfig-frontends/Makefile
+	cd $(DIBS_ROOT)/tools/kconfig-frontends; make install
 
-$(dibs_root)tools/kconfig-frontends/frontends/conf/kconfig-conf:$(dibs_root)tools/kconfig-frontends/Makefile
-	cd $(dibs_root)tools/kconfig-frontends; make
+$(DIBS_ROOT)/tools/kconfig-frontends/frontends/conf/kconfig-conf:$(DIBS_ROOT)/tools/kconfig-frontends/Makefile
+	cd $(DIBS_ROOT)/tools/kconfig-frontends; make
 
-$(dibs_root)tools/kconfig-frontends/Makefile:$(dibs_root)tools/kconfig-frontends/configure
-	cd $(dibs_root)tools/kconfig-frontends; ./configure --prefix=$(dibs_root)host/
+$(DIBS_ROOT)/tools/kconfig-frontends/Makefile:$(DIBS_ROOT)/tools/kconfig-frontends/configure
+	cd $(DIBS_ROOT)/tools/kconfig-frontends; ./configure --prefix=$(DIBS_ROOT)/host/
 
-$(dibs_root)tools/kconfig-frontends/configure:$(dibs_root)tools/kconfig-frontends/configure.ac
-	cd $(dibs_root)tools/kconfig-frontends; autoreconf -vi
+$(DIBS_ROOT)/tools/kconfig-frontends/configure:$(DIBS_ROOT)/tools/kconfig-frontends/configure.ac
+	cd $(DIBS_ROOT)/tools/kconfig-frontends; autoreconf -vi
 
-$(dibs_root)tools/kconfig-frontends/configure.ac:
-	cd $(dibs_root); git submodule update --init --recursive
+$(DIBS_ROOT)/tools/kconfig-frontends/configure.ac:
+	cd $(DIBS_ROOT); git submodule update --init --recursive
 
 clean:
-	rm -rf $(dibs_root)host
+	rm -rf $(DIBS_ROOT)/host
 	git submodule foreach --recursive git clean -fx
 
-.PHONY: clean setup
+.PHONY: clean all
 
