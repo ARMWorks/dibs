@@ -41,7 +41,7 @@ function config()
 
 	kconfig-mconf dibs/Kconfig
 
-	if [[ -f config ]] ; then
+	if [[ -f config/config ]] ; then
 		regen
 	fi
 }
@@ -106,16 +106,13 @@ function regen()
 {
 	read_config
 	
-	rm -rf config
-	mkdir -p config
-
 	local f="$workspace/config/preseed"
 	truncate -s 0 $f
 	if [[ "$config_use_sysvinit" == "y" ]]; then
 		echo "preseed/late_command=\"in-target apt-get install -y sysvinit-core\"" >> $f
 	fi
 
-	local f="$workspace/config/config.sh"
+	local f="$workspace/config/stage2.sh"
 	echo "#!/bin/sh" > $f
 	echo >> $f
 	echo "set -e" >> $f
@@ -131,14 +128,14 @@ function regen()
 	echo "mount proc -t proc /proc" >> $f
 	echo "dpkg --configure -a" >> $f
 	echo "umount /proc" >> $f
-	echo "rm /config.sh" >> $f
+	echo "rm /stage2.sh" >> $f
 	echo "if [ -d /tmp/preseeds ]; then" >> $f
 	echo "	rm -r /tmp/preseeds" >> $f
 	echo "fi" >> $f
 	chmod 755 $f
 
 	local f="$workspace/config/multistrap.conf"
-	echo "[General]" >> $f
+	echo "[General]" > $f
 	echo "unpack=true" >> $f
 	echo "debootstrap=${config_distro^}" >> $f
 	echo "aptsources=${config_distro^}" >> $f
@@ -146,7 +143,7 @@ function regen()
 	echo "arch=${config_arch}" >> $f
 	echo "directory=rootfs" >> $f
 	echo "debconfseed=config/preseed" >> $f
-	echo "configscript=config/config.sh" >> $f
+	echo "configscript=config/stage2.sh" >> $f
 	echo >> $f
 	if [[ "$config_distro" == "debian" ]] ; then
 		echo "[Debian]" >> $f
@@ -206,7 +203,7 @@ function build()
 
 	install_static_qemu
 
-	chroot . /bin/bash ./config.sh
+	chroot . /bin/bash ./stage2.sh
 
 	uninstall_static_qemu
 
