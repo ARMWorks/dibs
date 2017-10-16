@@ -202,11 +202,11 @@ function dibs_build()
 	multistrap -f config/multistrap.conf
 	cd rootfs
 
-	source ../dibs/network
-
 	install_static_qemu
 
 	chroot . /bin/bash ./stage2.sh
+
+	source ../dibs/network
 
 	uninstall_static_qemu
 
