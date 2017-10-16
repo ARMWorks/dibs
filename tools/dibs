@@ -22,7 +22,7 @@ function dibs_init()
 {
 	local board=$1
 
-	DIBS_WORKSPACE="${PWD}"
+	export DIBS_WORKSPACE="${PWD}"
 	touch .dibs_workspace
 
 	if [[ ! -z "$board" ]] ; then
@@ -38,15 +38,43 @@ function dibs_init()
 	ln -sf "$DIBS_ROOT/dibs"
 }
 
-function dibs_config()
+function require_workspace()
 {
 	if [[ "$DIBS_WORKSPACE" == "/" ]] ; then
 		echo "DIBS workspace not found. Try creating a directory and run \"dibs init\"."
-		return
+		exit
 	fi
+}
+
+function require_config()
+{
+	if [[ ! -f "$DIBS_WORKSPACE/config/config" ]] ; then
+		echo "Config not found. Try \"dibs config\"."
+		exit
+	fi
+}
+
+function require_rootfs_tar()
+{
+	if [[ ! -f $DIBS_WORKSPACE/rootfs.tar ]] ; then
+		echo "rootfs.tar not found!  Have you ran \"dibs build\" yet?"
+		exit
+	fi
+}
+
+function require_rootfs_dir()
+{
+	if [[ ! -d $DIBS_WORKSPACE/rootfs ]] ; then
+		echo "No extracted filesystem found. Did you run \"dibs untar\"?"
+		exit
+	fi
+}
+
+function dibs_config()
+{
+	require_workspace
 
 	kconfig-mconf dibs/Kconfig
-
 	if [[ -f config/config ]] ; then
 		dibs_regen
 	fi
@@ -54,10 +82,8 @@ function dibs_config()
 
 function read_config()
 {
-	if [[ ! -f "$DIBS_WORKSPACE/config/config" ]] ; then
-		echo "Config not found. Try \"dibs config\"."
-		exit
-	fi
+	require_workspace
+	require_config
 
 	config_arch=""
 	if [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s ARCH_AMD64)" ]] ; then
@@ -207,69 +233,41 @@ function dibs_build()
 	mkdir -p rootfs
 	multistrap -f config/multistrap.conf
 	cd rootfs
-
 	install_static_qemu
-
-	chroot . /bin/bash ./stage2.sh
-
-	source ../dibs/network
-
+	chroot . /bin/bash /stage2.sh
+	source "$DIBS_WORKSPACE/dibs/network"
 	uninstall_static_qemu
-
-	tar -cf ../rootfs.tar .
-	cd ..
-	rm -r rootfs
+	dibs_tar
 }	
-
-function dibs_shell()
-{
-	if [[ ! -f rootfs.tar ]] ; then
-		echo "rootfs.tar not found!  Have you ran \"dibs build\" yet?"
-		exit
-	fi
-
-	read_config
-
-	mkdir rootfs
-	cd rootfs
-	tar -xf ../rootfs.tar
-	
-	install_static_qemu
-
-	chroot . /bin/bash
-
-	uninstall_static_qemu
-
-	tar -cf ../rootfs.tar .
-	cd ..
-	rm -rf rootfs
-}
 
 function dibs_untar()
 {
-	if [[ ! -f rootfs.tar ]] ; then
-		echo "rootfs.tar not found!  Have you ran \"dibs build\" yet?"
-		exit
-	fi
+	require_rootfs_tar
 
-	mkdir rootfs
-	cd rootfs
-	tar -xf ../rootfs.tar
+	mkdir -p "$DIBS_WORKSPACE/rootfs"
+	cd "$DIBS_WORKSPACE/rootfs"
+	tar -xf "$DIBS_WORKSPACE/rootfs.tar"
 }
 
 function dibs_tar()
 {
-	if [[ ! -d rootfs ]] ; then
-		echo "No extracted filesystem found. Did you run \"dibs untar\"?"
-		exit
-	fi
-
-	cd rootfs
-	tar -cf ../rootfs.tar .
-	cd ..
-	rm -rf rootfs
+	require_rootfs_dir
+	cd "$DIBS_WORKSPACE/rootfs"
+	tar -cf "$DIBS_WORKSPACE/rootfs.tar" .
+	cd "$DIBS_WORKSPACE"
+	rm -rf "$DIBS_WORKSPACE/rootfs"
 }
 
+function dibs_shell()
+{
+	read_config
+
+	dibs_untar
+	install_static_qemu
+	chroot . /bin/bash
+	uninstall_static_qemu
+	dibs_tar
+}
 
 function dibs_help()
 {
