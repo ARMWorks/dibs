@@ -10,20 +10,22 @@ if [[ $(id -u) -ne 0 ]] ; then
 	exit
 fi
 
-if [[ "$DIBS_ROOT" == "$PWD" ]] ; then
-	echo "Cannot work in DIBS root. Please create a directory to use as a workspace."
+if [[ "$DIBS_ROOT" == "$DIBS_WORKSPACE" ]] ; then
+	echo "Cannot work in DIBS root. Please create a directory to use as a DIBS_WORKSPACE."
 	exit
 fi
 
-workspace="$(readlink -f "${PWD}")"
-KCONFIG_CONFIG="$workspace/config/config"
+KCONFIG_CONFIG="$DIBS_WORKSPACE/config/config"
 export KCONFIG_CONFIG
 
-function dibs_config()
+function dibs_init()
 {
 	local board=$1
 
-	if [[ -n "$board" ]] ; then
+	DIBS_WORKSPACE="${PWD}"
+	touch .dibs_workspace
+
+	if [[ ! -z "$board" ]] ; then
 		if [[ ! -d "$DIBS_ROOT/boards/$board" ]] ; then
 			echo "Board \"$board\" does not exist, aborting."
 			return
@@ -32,11 +34,15 @@ function dibs_config()
 		cp -r "$DIBS_ROOT/boards/$board/"* .
 		shopt -u dotglob
 	fi
-	if [[ ! -f "config" ]] ; then
-		mkdir config
-	fi
-	if [[ ! -f "dibs" ]] ; then
-		ln -sf "$DIBS_ROOT/dibs"
+	mkdir -p config
+	ln -sf "$DIBS_ROOT/dibs"
+}
+
+function dibs_config()
+{
+	if [[ "$DIBS_WORKSPACE" == "/" ]] ; then
+		echo "DIBS workspace not found. Try creating a directory and run \"dibs init\"."
+		return
 	fi
 
 	kconfig-mconf dibs/Kconfig
@@ -48,75 +54,75 @@ function dibs_config()
 
 function read_config()
 {
-	if [[ ! -f "$workspace/config/config" ]] ; then
+	if [[ ! -f "$DIBS_WORKSPACE/config/config" ]] ; then
 		echo "Config not found. Try \"dibs config\"."
 		exit
 	fi
 
 	config_arch=""
-	if [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s ARCH_AMD64)" ]] ; then
+	if [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s ARCH_AMD64)" ]] ; then
 		config_arch="amd64"
-	elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s ARCH_ARM64)" ]] ; then
+	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s ARCH_ARM64)" ]] ; then
 		config_arch="arm64"
-	elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s ARCH_ARMEL)" ]] ; then
+	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s ARCH_ARMEL)" ]] ; then
 		config_arch="armel"
-	elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s ARCH_ARMHF)" ]] ; then
+	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s ARCH_ARMHF)" ]] ; then
 		config_arch="armhf"
-	elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s ARCH_I386)" ]] ; then
+	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s ARCH_I386)" ]] ; then
 		config_arch="i386"
 	fi
 
 	config_board=""
-	if [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s BOARD_GENERIC)" ]] ; then
+	if [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s BOARD_GENERIC)" ]] ; then
 		config_board="generic"
-	elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s BOARD_NANOPI)" ]] ; then
+	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s BOARD_NANOPI)" ]] ; then
 		config_board="nanopi"
-	elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s BOARD_NANOPI2)" ]] ; then
+	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s BOARD_NANOPI2)" ]] ; then
 		config_board="nanopi2"
-	elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s BOARD_NANOPI_NEO_PLUS2)" ]] ; then
+	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s BOARD_NANOPI_NEO_PLUS2)" ]] ; then
 		config_board="nanopi_neo_plus2"
 	fi
 
 	config_distro=""
 	config_release=""
-	if [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s DISTRO_DEBIAN)" ]] ; then
+	if [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s DISTRO_DEBIAN)" ]] ; then
 		config_distro="debian"
-		if [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s RELEASE_DEBIAN_WHEEZY)" ]]; then
+		if [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s RELEASE_DEBIAN_WHEEZY)" ]]; then
 			config_release="wheezy"
-		elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s RELEASE_DEBIAN_JESSIE)" ]]; then
+		elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s RELEASE_DEBIAN_JESSIE)" ]]; then
 			config_release="jessie"
-		elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s RELEASE_DEBIAN_STRETCH)" ]]; then
+		elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s RELEASE_DEBIAN_STRETCH)" ]]; then
 			config_release="stretch"
-		elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s RELEASE_DEBIAN_TESTING)" ]]; then
+		elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s RELEASE_DEBIAN_TESTING)" ]]; then
 			config_release="testing"
 		fi
-	elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s DISTRO_UBUNTU)" ]] ; then
+	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s DISTRO_UBUNTU)" ]] ; then
 		config_distro="ubuntu"
-		if [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s RELEASE_UBUNTU_TRUSTY)" ]]; then
+		if [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s RELEASE_UBUNTU_TRUSTY)" ]]; then
 			config_release="trusty"
-		elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s RELEASE_UBUNTU_XENIAL)" ]]; then
+		elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s RELEASE_UBUNTU_XENIAL)" ]]; then
 			config_release="xenial"
-		elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s RELEASE_UBUNTU_ZESTY)" ]]; then
+		elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s RELEASE_UBUNTU_ZESTY)" ]]; then
 			config_release="zesty"
-		elif [[ "y" == "$(kconfig-tweak --file "$workspace/config/config" -s RELEASE_UBUNTU_ARTFUL)" ]]; then
+		elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s RELEASE_UBUNTU_ARTFUL)" ]]; then
 			config_release="artful"
 		fi
 	fi
 
-	config_use_sysvinit="$(kconfig-tweak --file "$workspace/config/config" -s USE_SYSVINIT)"
+	config_use_sysvinit="$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s USE_SYSVINIT)"
 }
 
 function dibs_regen()
 {
 	read_config
 	
-	local f="$workspace/config/preseed"
+	local f="$DIBS_WORKSPACE/config/preseed"
 	truncate -s 0 $f
 	if [[ "$config_use_sysvinit" == "y" ]]; then
 		echo "preseed/late_command=\"in-target apt-get install -y sysvinit-core\"" >> $f
 	fi
 
-	local f="$workspace/config/stage2.sh"
+	local f="$DIBS_WORKSPACE/config/stage2.sh"
 	echo "#!/bin/sh" > $f
 	echo >> $f
 	echo "set -e" >> $f
@@ -138,7 +144,7 @@ function dibs_regen()
 	echo "fi" >> $f
 	chmod 755 $f
 
-	local f="$workspace/config/multistrap.conf"
+	local f="$DIBS_WORKSPACE/config/multistrap.conf"
 	echo "[General]" > $f
 	echo "noauth=true" >> $f
 	echo "unpack=true" >> $f
@@ -269,10 +275,14 @@ function dibs_help()
 {
 	command=$1
 	case "$1" in
+		init)
+			echo "init: dibs init [board]"
+			echo "    Initializes a workspace, optionally with a given board preset."
+			;;
 		config)
 			echo "config: dibs config [board]"
-			echo "    Prepares a workspace and runs kconfig, optionally with a given board"
-			echo "    preset."
+			echo "    Pre-build configuration. First runs kconfig-mconfig and then"
+			echo "    generates output files."
 			;;
 		regen)
 			echo "regen: dibs regen"
@@ -298,6 +308,7 @@ function dibs_help()
 			echo "Usage:"
 			echo " build"
 			echo " config [board]"
+			echo " init"
 			echo " regen"
 			echo " shell"
 			echo " tar"
@@ -310,6 +321,9 @@ command=$1
 shift
 
 case "$command" in
+	init)
+		dibs_init "$@"
+		;;
 	config)
 		dibs_config "$@"
 		;;
