@@ -1,0 +1,11 @@
+config_packages=
+
+if [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s CONFIG_PACKAGE_APT)" ]] ; then
+	config_packages="$config_packages apt"
+fi
+
+config_packages_userdefined="$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s CONFIG_PACKAGE_USERDEFINED)"
+if [[ -n "$config_packages_userdefined" ]] ; then
+	config_packages="$config_packages $config_packages_userdefined"
+fi
+

@@ -1,0 +1,6 @@
+menu "Packages"
+	config PACKAGE_APT
+		bool "apt"
+	config PACKAGE_USERDEFINED
+		string "User defined, space separated list"
+endmenu

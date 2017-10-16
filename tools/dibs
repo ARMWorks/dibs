@@ -136,12 +136,14 @@ function read_config()
 	fi
 
 	config_use_sysvinit="$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s USE_SYSVINIT)"
+
+	source "$DIBS_WORKSPACE/dibs/packages"
 }
 
 function dibs_regen()
 {
 	read_config
-	
+
 	local f="$DIBS_WORKSPACE/config/preseed"
 	truncate -s 0 $f
 	if [[ "$config_use_sysvinit" == "y" ]]; then
@@ -184,10 +186,12 @@ function dibs_regen()
 	echo >> $f
 	if [[ "$config_distro" == "debian" ]] ; then
 		echo "[Debian]" >> $f
+		echo "packages=$config_packages" >> $f
 		echo "source=http://deb.debian.org/debian" >> $f
 	elif [[ "$config_distro" == "ubuntu" ]] ; then
 		echo "[Ubuntu]" >> $f
 		if [[ "$config_arch" != "amd64" ]] && [[ "$config_arch" != "i386" ]] ; then
+			echo "packages=$config_packages" >> $f
 			echo "source=http://ports.ubuntu.com/ubuntu-ports" >> $f
 		else
 			echo "source=http://archive.ubuntu.com/ubuntu" >> $f

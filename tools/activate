@@ -26,6 +26,21 @@ if [[ $(id -u) -ne 0 ]] ; then
 	exit
 fi
 
+if [[ ! -x "/usr/sbin/multistrap" ]] ; then
+	echo "Please install \"multistrap\" first."
+	exit
+fi
+
+if [[ -z "$(which multistrap)" ]] ; then
+	echo "Please install \"multistrap\" first."
+	exit
+fi
+
+if [[ -z "$(which qemu-arm-static)" ]] ; then
+	echo "Please install \"qemu-user-static\" first."
+	exit
+fi
+
 if [ ! -x "$DIBS_ROOT/host/bin/kconfig" ] ; then
 	make -C "$DIBS_ROOT/tools" "$DIBS_ROOT/host/bin/kconfig" || exit 
 fi

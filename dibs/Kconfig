@@ -79,5 +79,6 @@ config USE_SYSVINIT
 
 source "dibs/boards/nanopi/Kconfig"
 
+source "dibs/Kconfig.packages"
 source "dibs/Kconfig.network"
 
