@@ -244,6 +244,18 @@ function dibs_build()
 	dibs_tar
 }	
 
+function unmount_rootfs_subdirs()
+{
+	IFS=$'\n'
+	for line in $(mount) ; do
+		local mountpoint="$(echo $line | cut -d' ' -f3)"
+		if [ "${mountpoint##$DIBS_WORKSPACE/rootfs/}" != "${mountpoint}" ] ; then
+			umount -R "$mountpoint"
+		fi
+	done
+	IFS=' '
+}
+
 function dibs_untar()
 {
 	require_rootfs_tar
@@ -256,10 +268,12 @@ function dibs_untar()
 function dibs_tar()
 {
 	require_rootfs_dir
+	unmount_rootfs_subdirs
+
 	cd "$DIBS_WORKSPACE/rootfs"
-	tar -cf "$DIBS_WORKSPACE/rootfs.tar" .
+	tar -cf --one-file-system "$DIBS_WORKSPACE/rootfs.tar" .
 	cd "$DIBS_WORKSPACE"
-	rm -rf "$DIBS_WORKSPACE/rootfs"
+	rm -rf --one-file-system "$DIBS_WORKSPACE/rootfs"
 }
 
 function dibs_shell()
@@ -268,7 +282,10 @@ function dibs_shell()
 
 	dibs_untar
 	install_static_qemu
-	chroot . /bin/bash
+	mount -t devtmpfs devtmpfs "$DIBS_WORKSPACE/rootfs/dev"
+	mount -t tmpfs tmpfs "$DIBS_WORKSPACE/rootfs/tmp"
+	mount -t proc proc "$DIBS_WORKSPACE/rootfs/proc"
+	chroot "$DIBS_WORKSPACE/rootfs" /bin/bash
 	uninstall_static_qemu
 	dibs_tar
 }
