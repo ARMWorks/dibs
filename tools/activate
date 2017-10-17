@@ -46,7 +46,7 @@ if [ ! -x "$DIBS_ROOT/host/bin/kconfig" ] ; then
 fi
 
 if [ ! -x "$DIBS_ROOT/host/bin/dibs" ] ; then
-	ln -s "$DIBS_ROOT/tools/dibs" "$DIBS_ROOT/host/bin"
+	ln -sf "$DIBS_ROOT/tools/dibs" "$DIBS_ROOT/host/bin"
 fi
 
 deactivate () {
