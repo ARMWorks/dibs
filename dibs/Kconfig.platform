@@ -12,12 +12,11 @@ menu "Platform"
 			depends on BOARD="generic" || BOARD="nanopi" || BOARD="nanopi2"
 		config ARCH_ARMHF
 			bool "armhf"
-			depends on BOARD="generic" || BOARD="nanopi"
+			depends on BOARD="generic" || BOARD="nanopi2"
 		config ARCH_I386
 			bool "i386"
 			depends on BOARD="generic"
 	endchoice
-
 
 	choice DISTRO
 		prompt "Distribution"

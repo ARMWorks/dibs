@@ -56,7 +56,7 @@ function require_config()
 
 function require_rootfs_tar()
 {
-	if [[ ! -f $DIBS_WORKSPACE/rootfs.tar ]] ; then
+	if [[ ! -f "$DIBS_WORKSPACE/rootfs.tar" ]] ; then
 		echo "rootfs.tar not found!  Have you ran \"dibs build\" yet?"
 		exit
 	fi
@@ -64,7 +64,7 @@ function require_rootfs_tar()
 
 function require_rootfs_dir()
 {
-	if [[ ! -d $DIBS_WORKSPACE/rootfs ]] ; then
+	if [[ ! -d "$DIBS_WORKSPACE/rootfs" ]] ; then
 		echo "No extracted filesystem found. Did you run \"dibs untar\"?"
 		exit
 	fi
@@ -74,8 +74,11 @@ function dibs_config()
 {
 	require_workspace
 
-	kconfig-mconf dibs/Kconfig
-	if [[ -f config/config ]] ; then
+	pushd "$DIBS_WORKSPACE" > /dev/null
+	kconfig-mconf "dibs/Kconfig"
+	popd > /dev/null
+
+	if [[ -f "$DIBS_WORKSPACE/config/config" ]] ; then
 		dibs_regen
 	fi
 }
@@ -84,6 +87,8 @@ function read_config()
 {
 	require_workspace
 	require_config
+
+	config_board="$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s BOARD)"
 
 	config_arch=""
 	if [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s ARCH_AMD64)" ]] ; then
@@ -96,17 +101,6 @@ function read_config()
 		config_arch="armhf"
 	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s ARCH_I386)" ]] ; then
 		config_arch="i386"
-	fi
-
-	config_board=""
-	if [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s BOARD_GENERIC)" ]] ; then
-		config_board="generic"
-	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s BOARD_NANOPI)" ]] ; then
-		config_board="nanopi"
-	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s BOARD_NANOPI2)" ]] ; then
-		config_board="nanopi2"
-	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s BOARD_NANOPI_NEO_PLUS2)" ]] ; then
-		config_board="nanopi_neo_plus2"
 	fi
 
 	config_distro=""
@@ -209,9 +203,9 @@ function install_static_qemu()
 	fi
 
 	if [[ "$config_arch" == "armel" ]] || [[ "$config_arch" == "armhf" ]] ; then
-		cp /usr/bin/qemu-arm-static usr/bin
+		cp /usr/bin/qemu-arm-static "$DIBS_WORKSPACE/rootfs/usr/bin"
 	elif [[ "$config_arch" == "arm64" ]] ; then
-		cp /usr/bin/qemu-aarch64-static usr/bin
+		cp /usr/bin/qemu-aarch64-static "$DIBS_WORKSPACE/rootfs/usr/bin"
 	fi
 }
 
@@ -224,9 +218,9 @@ function uninstall_static_qemu()
 	fi
 
 	if [[ "$config_arch" == "armel" ]] || [[ "$config_arch" == "armhf" ]] ; then
-		rm -f usr/bin/qemu-arm-static
+		rm -f "$DIBS_WORKSPACE/rootfs/usr/bin/qemu-arm-static"
 	elif [[ "$config_arch" == "arm64" ]] ; then
-		rm -f usr/bin/qemu-aarch64-static
+		rm -f "$DIBS_WORKSPACE/rootfs/usr/bin/qemu-aarch64-static"
 	fi
 }
 
@@ -234,6 +228,7 @@ function dibs_build()
 {
 	read_config
 
+	pushd "$DIBS_WORKSPACE" > /dev/null
 	mkdir -p rootfs
 	multistrap -f config/multistrap.conf
 	cd rootfs
@@ -242,6 +237,7 @@ function dibs_build()
 	source "$DIBS_WORKSPACE/dibs/network"
 	uninstall_static_qemu
 	dibs_tar
+	popd > /dev/null
 }	
 
 function unmount_rootfs_subdirs()
@@ -261,8 +257,9 @@ function dibs_untar()
 	require_rootfs_tar
 
 	mkdir -p "$DIBS_WORKSPACE/rootfs"
-	cd "$DIBS_WORKSPACE/rootfs"
+	pushd "$DIBS_WORKSPACE/rootfs" > /dev/null
 	tar -xf "$DIBS_WORKSPACE/rootfs.tar"
+	popd > /dev/null
 }
 
 function dibs_tar()
@@ -270,9 +267,9 @@ function dibs_tar()
 	require_rootfs_dir
 	unmount_rootfs_subdirs
 
-	cd "$DIBS_WORKSPACE/rootfs"
-	tar -cf --one-file-system "$DIBS_WORKSPACE/rootfs.tar" .
-	cd "$DIBS_WORKSPACE"
+	pushd "$DIBS_WORKSPACE/rootfs" > /dev/null
+	tar --one-file-system -cf "$DIBS_WORKSPACE/rootfs.tar" .
+	popd > /dev/null
 	rm -rf --one-file-system "$DIBS_WORKSPACE/rootfs"
 }
 
