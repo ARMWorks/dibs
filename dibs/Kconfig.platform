@@ -1,0 +1,67 @@
+menu "Platform"
+	choice ARCH
+		prompt "Architecture"
+		config ARCH_AMD64
+			bool "amd64"
+			depends on BOARD="generic"
+		config ARCH_ARM64
+			bool "arm64"
+			depends on BOARD="generic" || BOARD="nanopi_neo_plus2"
+		config ARCH_ARMEL
+			bool "armel"
+			depends on BOARD="generic" || BOARD="nanopi" || BOARD="nanopi2"
+		config ARCH_ARMHF
+			bool "armhf"
+			depends on BOARD="generic" || BOARD="nanopi"
+		config ARCH_I386
+			bool "i386"
+			depends on BOARD="generic"
+	endchoice
+
+
+	choice DISTRO
+		prompt "Distribution"
+		config DISTRO_DEBIAN
+			bool "Debian"
+		config DISTRO_UBUNTU
+			bool "Ubuntu"
+	endchoice
+
+	if DISTRO_DEBIAN
+		choice RELEASE_DEBIAN
+			prompt "Release"
+			default RELEASE_DEBIAN_STRETCH
+			config RELEASE_DEBIAN_WHEEZY
+				bool "7 - Wheezy"
+			config RELEASE_DEBIAN_JESSIE
+				bool "8 - Jessie"
+			config RELEASE_DEBIAN_STRETCH
+				bool "9 - Stretch"
+			config RELEASE_DEBIAN_TESTING
+				bool "Testing"
+		endchoice
+	endif
+
+	if DISTRO_UBUNTU
+		choice RELEASE_UBUNTU
+			prompt "Release"
+			default RELEASE_UBUNTU_XENIAL
+			config RELEASE_UBUNTU_TRUSTY
+				bool "14.04 - Trusty Tahr"
+			config RELEASE_UBUNTU_XENIAL
+				bool "16.04 - Xenial Xerus"
+			config RELEASE_UBUNTU_ZESTY
+				bool "17.04 - Zesty Zapus"
+			config RELEASE_UBUNTU_ARTFUL
+				bool "17.10 - Artful Aardvark"
+		endchoice
+	endif
+
+	config USE_SYSVINIT
+		bool "Use sysvinit instead of systemd"
+		depends on RELEASE_DEBIAN_JESSIE || RELEASE_DEBIAN_STRETCH || RELEASE_DEBIAN_TESTING
+
+source "board/Kconfig"
+
+endmenu
+

@@ -20,22 +20,22 @@ export KCONFIG_CONFIG
 
 function dibs_init()
 {
-	local board=$1
+	local board=${1:-generic}
 
-	export DIBS_WORKSPACE="${PWD}"
-	touch .dibs_workspace
-
-	if [[ ! -z "$board" ]] ; then
-		if [[ ! -d "$DIBS_ROOT/boards/$board" ]] ; then
-			echo "Board \"$board\" does not exist, aborting."
-			return
-		fi
-		shopt -s dotglob
-		cp -r "$DIBS_ROOT/boards/$board/"* .
-		shopt -u dotglob
+	if [[ ! -d "$DIBS_ROOT/boards/$board" ]] ; then
+		echo "Board \"$board\" does not exist, aborting."
+		return
 	fi
+
+	echo "board=$board" > .dibs_workspace
+
+	mkdir -p board
+	shopt -s dotglob
+	cp -r "$DIBS_ROOT/boards/$board/"* board
+	shopt -u dotglob
+
 	mkdir -p config
-	ln -sf "$DIBS_ROOT/dibs"
+	ln -sf "$DIBS_ROOT/dibs" dibs
 }
 
 function require_workspace()

@@ -1,84 +1,14 @@
-mainmenu "DIBS"
+mainmenu "DIBS for $DIBS_BOARD"
 
-choice BOARD
-	prompt "Board"
-	config BOARD_GENERIC
-		bool "Generic Board"
-	config BOARD_NANOPI
-		bool "FriendlyElec NanoPi"
-		imply ARCH_ARMEL
-	config BOARD_NANOPI2
-		bool "FriendlyElec NanoPi 2"
-		imply ARCH_ARMHF
-	config BOARD_NANOPI_NEO_PLUS2
-		bool "FriendlyElec NanoPi NEO Plus2"
-		imply ARCH_ARM64
-endchoice
+config DIBS_BOARD
+	string
+	option env="DIBS_BOARD"
 
-choice ARCH
-	prompt "Architecture"
-	config ARCH_AMD64
-		bool "amd64"
-		depends on BOARD_GENERIC
-	config ARCH_ARM64
-		bool "arm64"
-		depends on BOARD_GENERIC || BOARD_NANOPI_NEO_PLUS2
-	config ARCH_ARMEL
-		bool "armel"
-		depends on BOARD_GENERIC || BOARD_NANOPI || BOARD_NANOPI2
-	config ARCH_ARMHF
-		bool "armhf"
-		depends on BOARD_GENERIC || BOARD_NANOPI2
-	config ARCH_I386
-		bool "i386"
-		depends on BOARD_GENERIC
-endchoice
+config BOARD
+	string 
+	default DIBS_BOARD
 
-
-choice DISTRO
-	prompt "Distro"
-	config DISTRO_DEBIAN
-		bool "Debian"
-	config DISTRO_UBUNTU
-		bool "Ubuntu"
-endchoice
-
-if DISTRO_DEBIAN
-	choice RELEASE_DEBIAN
-		prompt "Release"
-		default RELEASE_DEBIAN_STRETCH
-		config RELEASE_DEBIAN_WHEEZY
-			bool "7 - Wheezy"
-		config RELEASE_DEBIAN_JESSIE
-			bool "8 - Jessie"
-		config RELEASE_DEBIAN_STRETCH
-			bool "9 - Stretch"
-		config RELEASE_DEBIAN_TESTING
-			bool "Testing"
-	endchoice
-endif
-
-if DISTRO_UBUNTU
-	choice RELEASE_UBUNTU
-		prompt "Release"
-		default RELEASE_UBUNTU_XENIAL
-		config RELEASE_UBUNTU_TRUSTY
-			bool "14.04 - Trusty Tahr"
-		config RELEASE_UBUNTU_XENIAL
-			bool "16.04 - Xenial Xerus"
-		config RELEASE_UBUNTU_ZESTY
-			bool "17.04 - Zesty Zapus"
-		config RELEASE_UBUNTU_ARTFUL
-			bool "17.10 - Artful Aardvark"
-	endchoice
-endif
-
-config USE_SYSVINIT
-	bool "Use sysvinit instead of systemd"
-	depends on RELEASE_DEBIAN_JESSIE || RELEASE_DEBIAN_STRETCH || RELEASE_DEBIAN_TESTING
-
-source "dibs/boards/nanopi/Kconfig"
-
+source "dibs/Kconfig.platform"
 source "dibs/Kconfig.packages"
 source "dibs/Kconfig.network"
 
