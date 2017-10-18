@@ -15,8 +15,7 @@ if [[ "$DIBS_ROOT" == "$PWD" ]] ; then
 	exit
 fi
 
-KCONFIG_CONFIG="$DIBS_WORKSPACE/config/config"
-export KCONFIG_CONFIG
+source "$DIBS_ROOT/dibs/packages"
 
 function dibs_board()
 {
@@ -40,53 +39,23 @@ function dibs_board()
 
 function require_workspace()
 {
-	if [[ "$DIBS_WORKSPACE" == "/" ]] || [[ ! -f "$DIBS_WORKSPACE/.dibs_workspace" ]]; then
+	if [[ -z "$DIBS_WORKSPACE" ]] || [[ ! -f "$DIBS_WORKSPACE/.dibs_workspace" ]]; then
 		echo "DIBS workspace not found. Try creating a directory and run \"dibs board\"."
 		exit
 	fi
+
+	KCONFIG_CONFIG="${DIBS_WORKSPACE:-/tmp}/config/config"
+	export KCONFIG_CONFIG
 }
 
 function require_config()
 {
-	if [[ ! -f "$DIBS_WORKSPACE/config/config" ]] ; then
+	require_workspace
+
+	if [[ ! -f "$KCONFIG_CONFIG" ]] ; then
 		echo "Config not found. Try \"dibs config\"."
 		exit
 	fi
-}
-
-function require_rootfs_tar()
-{
-	if [[ ! -f "$DIBS_WORKSPACE/rootfs.tar" ]] ; then
-		echo "rootfs.tar not found!  Have you ran \"dibs build\" yet?"
-		exit
-	fi
-}
-
-function require_rootfs_dir()
-{
-	if [[ ! -d "$DIBS_WORKSPACE/rootfs" ]] ; then
-		echo "No extracted filesystem found. Did you run \"dibs untar\"?"
-		exit
-	fi
-}
-
-function dibs_config()
-{
-	require_workspace
-
-	pushd "$DIBS_WORKSPACE" > /dev/null
-	kconfig-mconf "dibs/Kconfig"
-	popd > /dev/null
-
-	if [[ -f "$DIBS_WORKSPACE/config/config" ]] ; then
-		dibs_regen
-	fi
-}
-
-function read_config()
-{
-	require_workspace
-	require_config
 
 	config_board="$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s BOARD)"
 
@@ -131,12 +100,46 @@ function read_config()
 
 	config_use_sysvinit="$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s USE_SYSVINIT)"
 
-	source "$DIBS_WORKSPACE/dibs/packages"
+	require_config_packages
+}
+
+function require_rootfs_tar()
+{
+	require_workspace
+
+	if [[ ! -f "$DIBS_WORKSPACE/rootfs.tar" ]] ; then
+		echo "rootfs.tar not found!  Have you ran \"dibs build\" yet?"
+		exit
+	fi
+}
+
+function require_rootfs_dir()
+{
+	require_workspace
+
+	if [[ ! -d "$DIBS_WORKSPACE/rootfs" ]] ; then
+		echo "No extracted filesystem found. Did you run \"dibs untar\"?"
+		exit
+	fi
+}
+
+function dibs_config()
+{
+	require_workspace
+
+	generate_kconfig_packages
+	pushd "$DIBS_WORKSPACE" > /dev/null
+	kconfig-mconf "dibs/Kconfig"
+	popd > /dev/null
+
+	if [[ -f "$DIBS_WORKSPACE/config/config" ]] ; then
+		dibs_regen
+	fi
 }
 
 function dibs_regen()
 {
-	read_config
+	require_config
 
 	local f="$DIBS_WORKSPACE/config/preseed"
 	truncate -s 0 $f
@@ -194,7 +197,7 @@ function dibs_regen()
 	echo "suite=$config_release" >> $f
 }
 
-# assumes read_config has already been ran
+# assumes require_config has already been ran
 function install_static_qemu()
 {
 	if [[ "$PWD" == "/" ]] ; then
@@ -209,7 +212,7 @@ function install_static_qemu()
 	fi
 }
 
-# assumes read_config has already been ran
+# assumes require_config has already been ran
 function uninstall_static_qemu()
 {
 	if [[ "$PWD" == "/" ]] ; then
@@ -226,7 +229,7 @@ function uninstall_static_qemu()
 
 function dibs_build()
 {
-	read_config
+	require_config
 
 	pushd "$DIBS_WORKSPACE" > /dev/null
 	mkdir -p rootfs
@@ -249,7 +252,7 @@ function unmount_rootfs_subdirs()
 			umount -R "$mountpoint"
 		fi
 	done
-	IFS=' '
+	unset IFS
 }
 
 function dibs_untar()
@@ -275,7 +278,7 @@ function dibs_tar()
 
 function dibs_shell()
 {
-	read_config
+	require_config
 
 	dibs_untar
 	install_static_qemu

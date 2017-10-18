@@ -1,5 +1,3 @@
-config_packages="$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s CONFIG_PACKAGE_USERDEFINED)"
-
 all_packages=(
 	apt
 	bluez
@@ -21,10 +19,42 @@ all_packages=(
 	wpasupplicant
 )
 
-for package in "${all_packages[@]}"; do
-	package_var=CONFIG_PACKAGE_$(echo ${package} | tr '[a-z-]' '[A-Z_]')
-	if [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s $package_var)" ]] ; then
-		config_packages="$config_packages $package"
+if [[ -n "$DIBS_WORKSPACE" ]] ; then
+	if [[ -f "$DIBS_WORKSPACE/config/packages" ]] ; then
+		mapfile -O ${#all_packages[@]} all_packages < "$DIBS_WORKSPACE/config/packages"
 	fi
-done
+fi
+
+IFS=$'\n' all_packages=($(sort <<<"${all_packages[*]}"))
+unset IFS
+
+function require_config_packages()
+{
+	config_packages="$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s CONFIG_PACKAGE_USERDEFINED)"
+
+	for package in "${all_packages[@]}"; do
+		local package_var=CONFIG_PACKAGE_$(echo ${package} | tr '[a-z-]' '[A-Z_]')
+		if [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s $package_var)" ]] ; then
+			config_packages="$config_packages $package"
+		fi
+	done
+}
+
+function generate_kconfig_packages()
+{
+	f="$DIBS_WORKSPACE/config/Kconfig.packages"
+	echo "# WARNING: This is an automatically-generated file, do not edit!" > $f
+	echo "# If you need to add a package to the list please create a \"packages\"" >> $f
+	echo "# file in this directory, with one package per line." >> $f
+	echo >> $f
+	echo "menu \"Packages\"" >> $f
+	echo "	config PACKAGE_USERDEFINED" >> $f
+	echo "		string \"User defined, space separated list\"" >> $f
+	for package in "${all_packages[@]}"; do
+		local package_var=CONFIG_PACKAGE_$(echo ${package} | tr '[a-z-]' '[A-Z_]')
+		echo "	config $package_var" >> $f
+		echo "		bool \"$package\"" >> $f
+	done
+	echo "endmenu" >> $f
+}
 
