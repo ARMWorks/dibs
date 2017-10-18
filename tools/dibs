@@ -18,7 +18,7 @@ fi
 KCONFIG_CONFIG="$DIBS_WORKSPACE/config/config"
 export KCONFIG_CONFIG
 
-function dibs_init()
+function dibs_board()
 {
 	local board=${1:-generic}
 
@@ -41,7 +41,7 @@ function dibs_init()
 function require_workspace()
 {
 	if [[ "$DIBS_WORKSPACE" == "/" ]] || [[ ! -f "$DIBS_WORKSPACE/.dibs_workspace" ]]; then
-		echo "DIBS workspace not found. Try creating a directory and run \"dibs init\"."
+		echo "DIBS workspace not found. Try creating a directory and run \"dibs board\"."
 		exit
 	fi
 }
@@ -291,9 +291,9 @@ function dibs_help()
 {
 	command=$1
 	case "$1" in
-		init)
-			echo "init: dibs init [board]"
-			echo "    Initializes a workspace, optionally with a given board preset."
+		board)
+			echo "board: dibs board [name]"
+			echo "    Initializes a workspace with a given board name."
 			;;
 		config)
 			echo "config: dibs config [board]"
@@ -322,9 +322,9 @@ function dibs_help()
 			;;
 		*)
 			echo "Usage:"
+			echo " board"
 			echo " build"
 			echo " config [board]"
-			echo " init"
 			echo " regen"
 			echo " shell"
 			echo " tar"
@@ -337,8 +337,8 @@ command=$1
 shift
 
 case "$command" in
-	init)
-		dibs_init "$@"
+	board)
+		dibs_board "$@"
 		;;
 	config)
 		dibs_config "$@"
