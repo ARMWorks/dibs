@@ -42,7 +42,7 @@ function require_config_packages()
 
 function generate_kconfig_packages()
 {
-	f="$DIBS_WORKSPACE/config/Kconfig.packages"
+	local f="$DIBS_WORKSPACE/config/Kconfig.packages"
 	echo "# WARNING: This is an automatically-generated file, do not edit!" > $f
 	echo "# If you need to add a package to the list please create a \"packages\"" >> $f
 	echo "# file in this directory, with one package per line." >> $f

@@ -56,11 +56,15 @@ menu "Platform"
 		endchoice
 	endif
 
-	config USE_SYSVINIT
-		bool "Use sysvinit instead of systemd"
-		depends on RELEASE_DEBIAN_JESSIE || RELEASE_DEBIAN_STRETCH || RELEASE_DEBIAN_TESTING
+	choice
+		prompt "Process Manager"
+		default PROCESS_MANAGER_SYSTEMD
+		config PROCESS_MANGER_SYSTEMD
+			bool "systemd"
+		config PROCESS_MANAGER_SYSVINIT
+			bool "sysvinit"
+	endchoice
 
-source "board/Kconfig"
-
+	source "board/Kconfig"
 endmenu
 

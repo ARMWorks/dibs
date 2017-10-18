@@ -98,7 +98,12 @@ function require_config()
 		fi
 	fi
 
-	config_use_sysvinit="$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s USE_SYSVINIT)"
+	config_process_manager=""
+	if [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s PROCESS_MANAGER_SYSTEMD)" ]] ; then
+		config_process_manager="systemd"
+	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s PROCESS_MANAGER_SYSVINIT)" ]] ; then
+		config_process_manager="sysvinit"
+	fi
 
 	require_config_packages
 }
@@ -141,12 +146,6 @@ function dibs_regen()
 {
 	require_config
 
-	local f="$DIBS_WORKSPACE/config/preseed"
-	truncate -s 0 $f
-	if [[ "$config_use_sysvinit" == "y" ]]; then
-		echo "preseed/late_command=\"in-target apt-get install -y sysvinit-core\"" >> $f
-	fi
-
 	local f="$DIBS_WORKSPACE/config/stage2.sh"
 	echo "#!/bin/sh" > $f
 	echo >> $f
@@ -154,20 +153,19 @@ function dibs_regen()
 	echo "export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true" >> $f
 	echo "export LC_ALL=C LANGUAGE=C LANG=C" >> $f
 	echo "/var/lib/dpkg/info/dash.preinst install" >> $f
-	echo "if [ -d /tmp/preseeds/ ]; then" >> $f
-	echo "	for file in \`ls -1 /tmp/preseeds/*\`; do" >> $f
-	echo "	debconf-set-selections \$file" >> $f
-	echo "	done" >> $f
-	echo "fi" >> $f
 	echo "dpkg --configure -a" >> $f
 	echo "mount proc -t proc /proc" >> $f
 	echo "dpkg --configure -a" >> $f
 	echo "umount /proc" >> $f
 	echo "rm /stage2.sh" >> $f
-	echo "if [ -d /tmp/preseeds ]; then" >> $f
-	echo "	rm -r /tmp/preseeds" >> $f
-	echo "fi" >> $f
 	chmod 755 $f
+
+	local extra_packages
+	if [[ "$config_process_manager" == "systemd" ]] ; then
+		extra_packages="systemd"
+	elif [[ "$config_process_manager" == "sysvinit" ]] ; then
+		extra_packages="sysvinit-core"
+	fi
 
 	local f="$DIBS_WORKSPACE/config/multistrap.conf"
 	echo "[General]" > $f
@@ -183,7 +181,7 @@ function dibs_regen()
 	echo >> $f
 	if [[ "$config_distro" == "debian" ]] ; then
 		echo "[Debian]" >> $f
-		echo "packages=$config_packages" >> $f
+		echo "packages=$config_packages $extra_packages" >> $f
 		echo "source=http://deb.debian.org/debian" >> $f
 		echo "keyring=debian-archive-keyring" >> $f
 		echo "suite=$config_release" >> $f
@@ -195,7 +193,7 @@ function dibs_regen()
 		echo "suite=$config_release/updates" >> $f
 	elif [[ "$config_distro" == "ubuntu" ]] ; then
 		echo "[Ubuntu]" >> $f
-		echo "packages=$config_packages" >> $f
+		echo "packages=$config_packages $extra_packages" >> $f
 		if [[ "$config_arch" != "amd64" ]] && [[ "$config_arch" != "i386" ]] ; then
 			echo "source=http://ports.ubuntu.com/ubuntu-ports" >> $f
 		else
