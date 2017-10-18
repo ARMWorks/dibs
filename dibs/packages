@@ -26,13 +26,13 @@ if [[ -n "$DIBS_WORKSPACE" ]] ; then
 fi
 
 IFS=$'\n' all_packages=($(sort <<<"${all_packages[*]}"))
-unset IFS
+IFS=' '
 
 function require_config_packages()
 {
 	config_packages="$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s CONFIG_PACKAGE_USERDEFINED)"
 
-	for package in "${all_packages[@]}"; do
+	for package in "${all_packages[@]}" ; do
 		local package_var=CONFIG_PACKAGE_$(echo ${package} | tr '[a-z-]' '[A-Z_]')
 		if [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s $package_var)" ]] ; then
 			config_packages="$config_packages $package"
@@ -50,8 +50,8 @@ function generate_kconfig_packages()
 	echo "menu \"Packages\"" >> $f
 	echo "	config PACKAGE_USERDEFINED" >> $f
 	echo "		string \"User defined, space separated list\"" >> $f
-	for package in "${all_packages[@]}"; do
-		local package_var=CONFIG_PACKAGE_$(echo ${package} | tr '[a-z-]' '[A-Z_]')
+	for package in "${all_packages[@]}" ; do
+		local package_var=PACKAGE_$(echo ${package} | tr '[a-z-]' '[A-Z_]')
 		echo "	config $package_var" >> $f
 		echo "		bool \"$package\"" >> $f
 	done

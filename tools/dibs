@@ -171,12 +171,12 @@ function dibs_regen()
 
 	local f="$DIBS_WORKSPACE/config/multistrap.conf"
 	echo "[General]" > $f
-	echo "noauth=true" >> $f
+	echo "noauth=true" >> $f # FIXME ?
 	echo "unpack=true" >> $f
-	echo "debootstrap=${config_distro^}" >> $f
-	echo "aptsources=${config_distro^}" >> $f
+	echo "debootstrap=${config_distro^} Security" >> $f
+	echo "aptsources=${config_distro^} Security" >> $f
 	echo "cleanup=true" >> $f
-	echo "arch=${config_arch}" >> $f
+	echo "arch=$config_arch" >> $f
 	echo "directory=rootfs" >> $f
 	echo "debconfseed=config/preseed" >> $f
 	echo "configscript=config/stage2.sh" >> $f
@@ -185,16 +185,34 @@ function dibs_regen()
 		echo "[Debian]" >> $f
 		echo "packages=$config_packages" >> $f
 		echo "source=http://deb.debian.org/debian" >> $f
+		echo "keyring=debian-archive-keyring" >> $f
+		echo "suite=$config_release" >> $f
+		echo >> $f
+		echo "[Security]" >> $f
+		echo "packages=" >> $f
+		echo "source=http://security.debian.org/" >> $f
+		echo "keyring=debian-archive-keyring" >> $f
+		echo "suite=$config_release/updates" >> $f
 	elif [[ "$config_distro" == "ubuntu" ]] ; then
 		echo "[Ubuntu]" >> $f
+		echo "packages=$config_packages" >> $f
 		if [[ "$config_arch" != "amd64" ]] && [[ "$config_arch" != "i386" ]] ; then
-			echo "packages=$config_packages" >> $f
 			echo "source=http://ports.ubuntu.com/ubuntu-ports" >> $f
 		else
 			echo "source=http://archive.ubuntu.com/ubuntu" >> $f
 		fi
+		echo "keyring=ubuntu-keyring" >> $f
+		echo "suite=$config_release" >> $f
+		echo "[Security]" >> $f
+		echo "packages=" >> $f
+		if [[ "$config_arch" != "amd64" ]] && [[ "$config_arch" != "i386" ]] ; then
+			echo "source=http://ports.ubuntu.com/ubuntu-ports" >> $f
+		else
+			echo "source=http://archive.ubuntu.com/ubuntu" >> $f
+		fi
+		echo "keyring=ubuntu-keyring" >> $f
+		echo "suite=$config_release-security" >> $f
 	fi
-	echo "suite=$config_release" >> $f
 }
 
 # assumes require_config has already been ran
