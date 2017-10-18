@@ -118,12 +118,12 @@ function require_rootfs_tar()
 	fi
 }
 
-function require_rootfs_dir()
+function require_target_dir()
 {
 	require_workspace
 
-	if [[ ! -d "$DIBS_WORKSPACE/rootfs" ]] ; then
-		echo "No extracted filesystem found. Did you run \"dibs untar\"?"
+	if [[ ! -d "$DIBS_WORKSPACE/target" ]] ; then
+		echo "No target filesystem found. Did you run \"dibs untar\"?"
 		exit
 	fi
 }
@@ -162,7 +162,7 @@ function dibs_regen()
 
 	local extra_packages
 	if [[ "$config_process_manager" == "systemd" ]] ; then
-		extra_packages="systemd"
+		extra_packages="systemd systemd-sysv"
 	elif [[ "$config_process_manager" == "sysvinit" ]] ; then
 		extra_packages="sysvinit-core"
 	fi
@@ -175,7 +175,7 @@ function dibs_regen()
 	echo "aptsources=${config_distro^} Security" >> $f
 	echo "cleanup=true" >> $f
 	echo "arch=$config_arch" >> $f
-	echo "directory=rootfs" >> $f
+	echo "directory=target" >> $f
 	echo "debconfseed=config/preseed" >> $f
 	echo "configscript=config/stage2.sh" >> $f
 	echo >> $f
@@ -222,9 +222,9 @@ function install_static_qemu()
 	fi
 
 	if [[ "$config_arch" == "armel" ]] || [[ "$config_arch" == "armhf" ]] ; then
-		cp /usr/bin/qemu-arm-static "$DIBS_WORKSPACE/rootfs/usr/bin"
+		cp /usr/bin/qemu-arm-static "$DIBS_WORKSPACE/target/usr/bin"
 	elif [[ "$config_arch" == "arm64" ]] ; then
-		cp /usr/bin/qemu-aarch64-static "$DIBS_WORKSPACE/rootfs/usr/bin"
+		cp /usr/bin/qemu-aarch64-static "$DIBS_WORKSPACE/target/usr/bin"
 	fi
 }
 
@@ -237,9 +237,9 @@ function uninstall_static_qemu()
 	fi
 
 	if [[ "$config_arch" == "armel" ]] || [[ "$config_arch" == "armhf" ]] ; then
-		rm -f "$DIBS_WORKSPACE/rootfs/usr/bin/qemu-arm-static"
+		rm -f "$DIBS_WORKSPACE/target/usr/bin/qemu-arm-static"
 	elif [[ "$config_arch" == "arm64" ]] ; then
-		rm -f "$DIBS_WORKSPACE/rootfs/usr/bin/qemu-aarch64-static"
+		rm -f "$DIBS_WORKSPACE/target/usr/bin/qemu-aarch64-static"
 	fi
 }
 
@@ -248,9 +248,9 @@ function dibs_build()
 	require_config
 
 	pushd "$DIBS_WORKSPACE" > /dev/null
-	mkdir -p rootfs
+	mkdir -p target
 	multistrap -f config/multistrap.conf
-	cd rootfs
+	cd target
 	install_static_qemu
 	chroot . /bin/bash /stage2.sh
 	source "$DIBS_WORKSPACE/dibs/network"
@@ -259,12 +259,12 @@ function dibs_build()
 	popd > /dev/null
 }	
 
-function unmount_rootfs_subdirs()
+function unmount_target_subdirs()
 {
 	IFS=$'\n'
 	for line in $(mount) ; do
 		local mountpoint="$(echo $line | cut -d' ' -f3)"
-		if [ "${mountpoint##$DIBS_WORKSPACE/rootfs/}" != "${mountpoint}" ] ; then
+		if [ "${mountpoint##$DIBS_WORKSPACE/target/}" != "${mountpoint}" ] ; then
 			umount -R "$mountpoint"
 		fi
 	done
@@ -275,21 +275,21 @@ function dibs_untar()
 {
 	require_rootfs_tar
 
-	mkdir -p "$DIBS_WORKSPACE/rootfs"
-	pushd "$DIBS_WORKSPACE/rootfs" > /dev/null
+	mkdir -p "$DIBS_WORKSPACE/target"
+	pushd "$DIBS_WORKSPACE/target" > /dev/null
 	tar -xf "$DIBS_WORKSPACE/rootfs.tar"
 	popd > /dev/null
 }
 
 function dibs_tar()
 {
-	require_rootfs_dir
-	unmount_rootfs_subdirs
+	require_target_dir
+	unmount_target_subdirs
 
-	pushd "$DIBS_WORKSPACE/rootfs" > /dev/null
+	pushd "$DIBS_WORKSPACE/target" > /dev/null
 	tar --one-file-system -cf "$DIBS_WORKSPACE/rootfs.tar" .
 	popd > /dev/null
-	rm -rf --one-file-system "$DIBS_WORKSPACE/rootfs"
+	rm -rf --one-file-system "$DIBS_WORKSPACE/target"
 }
 
 function dibs_shell()
@@ -298,10 +298,10 @@ function dibs_shell()
 
 	dibs_untar
 	install_static_qemu
-	mount -t devtmpfs devtmpfs "$DIBS_WORKSPACE/rootfs/dev"
-	mount -t tmpfs tmpfs "$DIBS_WORKSPACE/rootfs/tmp"
-	mount -t proc proc "$DIBS_WORKSPACE/rootfs/proc"
-	chroot "$DIBS_WORKSPACE/rootfs" /bin/bash
+	mount -t devtmpfs devtmpfs "$DIBS_WORKSPACE/target/dev"
+	mount -t tmpfs tmpfs "$DIBS_WORKSPACE/target/tmp"
+	mount -t proc proc "$DIBS_WORKSPACE/target/proc"
+	chroot "$DIBS_WORKSPACE/target" /bin/bash
 	uninstall_static_qemu
 	dibs_tar
 }
@@ -329,15 +329,16 @@ function dibs_help()
 			;;
 		shell)
 			echo "shell: dibs shell"
-			echo "    Starts a chroot shell in the rootfs."
+			echo "    Extracts the rootfs into target, starts a chroot shell and"
+			echo "    re-tars the directory when the chroot exits."
 			;;
 		tar)
 			echo "tar: dibs tar"
-			echo "    Makes a rootfs.tar from the contents of a rootfs directory."
+			echo "    Makes a rootfs.tar from the contents of target."
 			;;
 		untar)
 			echo "untar: dibs untar"
-			echo "    Extracts a rootfs.tar file into a rootfs directory."
+			echo "    Extracts a rootfs.tar file into target directory."
 			;;
 		*)
 			echo "Usage:"

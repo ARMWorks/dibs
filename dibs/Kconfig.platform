@@ -59,7 +59,7 @@ menu "Platform"
 	choice
 		prompt "Process Manager"
 		default PROCESS_MANAGER_SYSTEMD
-		config PROCESS_MANGER_SYSTEMD
+		config PROCESS_MANAGER_SYSTEMD
 			bool "systemd"
 		config PROCESS_MANAGER_SYSVINIT
 			bool "sysvinit"
