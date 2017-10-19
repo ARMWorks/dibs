@@ -1,1 +1,411 @@
-/home/jkent/Desktop/dibs2/dibs
+#!/bin/bash
+
+if [[ -z "$DIBS_ROOT" ]] ; then
+	echo "DIBS_ROOT is not set."
+	exit
+fi
+
+if [[ $(id -u) -ne 0 ]] ; then
+	echo "This script should be ran as root."
+	exit
+fi
+
+if [[ "$DIBS_ROOT" == "$PWD" ]] ; then
+	echo "Cannot work in DIBS root. Please create a directory to use as a DIBS_WORKSPACE."
+	exit
+fi
+
+source "$DIBS_ROOT/dibs/packages"
+
+function dibs_board()
+{
+	local board=${1:-generic}
+
+	if [[ ! -d "$DIBS_ROOT/boards/$board" ]] ; then
+		echo "Board \"$board\" does not exist, aborting."
+		return
+	fi
+
+	echo "board=$board" > .dibs_workspace
+
+	mkdir -p board
+	shopt -s dotglob
+	cp -r "$DIBS_ROOT/boards/$board/"* board
+	shopt -u dotglob
+
+	mkdir -p config
+	ln -sf "$DIBS_ROOT/dibs" dibs
+}
+
+function require_workspace()
+{
+	if [[ -z "$DIBS_WORKSPACE" ]] || [[ ! -f "$DIBS_WORKSPACE/.dibs_workspace" ]]; then
+		echo "DIBS workspace not found. Try creating a directory and run \"dibs board\"."
+		exit
+	fi
+
+	KCONFIG_CONFIG="${DIBS_WORKSPACE:-/tmp}/config/config"
+	export KCONFIG_CONFIG
+}
+
+function require_config()
+{
+	require_workspace
+
+	if [[ ! -f "$KCONFIG_CONFIG" ]] ; then
+		echo "Config not found. Try \"dibs config\"."
+		exit
+	fi
+
+	config_board="$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s BOARD)"
+
+	config_arch=""
+	if [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s ARCH_AMD64)" ]] ; then
+		config_arch="amd64"
+	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s ARCH_ARM64)" ]] ; then
+		config_arch="arm64"
+	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s ARCH_ARMEL)" ]] ; then
+		config_arch="armel"
+	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s ARCH_ARMHF)" ]] ; then
+		config_arch="armhf"
+	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s ARCH_I386)" ]] ; then
+		config_arch="i386"
+	fi
+
+	config_distro=""
+	config_release=""
+	if [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s DISTRO_DEBIAN)" ]] ; then
+		config_distro="debian"
+		if [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s RELEASE_DEBIAN_WHEEZY)" ]]; then
+			config_release="wheezy"
+		elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s RELEASE_DEBIAN_JESSIE)" ]]; then
+			config_release="jessie"
+		elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s RELEASE_DEBIAN_STRETCH)" ]]; then
+			config_release="stretch"
+		elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s RELEASE_DEBIAN_TESTING)" ]]; then
+			config_release="testing"
+		fi
+	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s DISTRO_UBUNTU)" ]] ; then
+		config_distro="ubuntu"
+		if [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s RELEASE_UBUNTU_TRUSTY)" ]]; then
+			config_release="trusty"
+		elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s RELEASE_UBUNTU_XENIAL)" ]]; then
+			config_release="xenial"
+		elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s RELEASE_UBUNTU_ZESTY)" ]]; then
+			config_release="zesty"
+		elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s RELEASE_UBUNTU_ARTFUL)" ]]; then
+			config_release="artful"
+		fi
+	fi
+
+	config_process_manager=""
+	if [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s PROCESS_MANAGER_SYSTEMD)" ]] ; then
+		config_process_manager="systemd"
+	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s PROCESS_MANAGER_SYSVINIT)" ]] ; then
+		config_process_manager="sysvinit"
+	elif [[ "y" == "$(kconfig-tweak -- file "$DIBS_WORKSPACE/config/config" -s PROCESS_MANAGER_UPSTART)" ]] ; then
+		config_process_manager="upstart"
+	fi
+
+	require_config_packages
+}
+
+function require_rootfs_tar()
+{
+	require_workspace
+
+	if [[ ! -f "$DIBS_WORKSPACE/rootfs.tar" ]] ; then
+		echo "rootfs.tar not found!  Have you ran \"dibs build\" yet?"
+		exit
+	fi
+}
+
+function require_target_dir()
+{
+	require_workspace
+
+	export DIBS_TARGET="$DIBS_WORKSPACE/target"
+
+	if [[ ! -d "$DIBS_TARGET" ]] ; then
+		echo "No target filesystem found. Did you run \"dibs untar\"?"
+		exit
+	fi
+}
+
+function dibs_config()
+{
+	require_workspace
+
+	generate_kconfig_packages
+	pushd "$DIBS_WORKSPACE" > /dev/null
+	kconfig-mconf "dibs/Kconfig"
+	popd > /dev/null
+
+	if [[ -f "$DIBS_WORKSPACE/config/config" ]] ; then
+		dibs_regen
+	fi
+}
+
+function dibs_regen()
+{
+	require_config
+
+	local f="$DIBS_WORKSPACE/config/stage2.sh"
+	echo "#!/bin/sh" > $f
+	echo >> $f
+	echo "set -e" >> $f
+	echo "export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true" >> $f
+	echo "export LC_ALL=C LANGUAGE=C LANG=C" >> $f
+	echo "/var/lib/dpkg/info/dash.preinst install" >> $f
+	echo "dpkg --configure -a" >> $f
+	echo "mount proc -t proc /proc" >> $f
+	echo "dpkg --configure -a" >> $f
+	echo "umount /proc" >> $f
+	echo "rm /stage2.sh" >> $f
+	chmod 755 $f
+
+	local extra_packages
+	if [[ "$config_process_manager" == "systemd" ]] ; then
+		extra_packages="systemd systemd-sysv udev"
+	elif [[ "$config_process_manager" == "sysvinit" ]] ; then
+		extra_packages="sysvinit-core udev"
+	elif [[ "$config_process_manager" == "upstart" ]] ; then
+		extra_packages="upstart upstart-udev-bridge udev"
+	fi
+
+	local f="$DIBS_WORKSPACE/config/multistrap.conf"
+	echo "[General]" > $f
+	echo "noauth=true" >> $f # FIXME ?
+	echo "unpack=true" >> $f
+	echo "debootstrap=${config_distro^} Security" >> $f
+	echo "aptsources=${config_distro^} Security" >> $f
+	echo "cleanup=true" >> $f
+	echo "arch=$config_arch" >> $f
+	echo "directory=target" >> $f
+	echo "configscript=config/stage2.sh" >> $f
+	echo >> $f
+	if [[ "$config_distro" == "debian" ]] ; then
+		echo "[Debian]" >> $f
+		echo "packages=$config_packages $extra_packages" >> $f
+		echo "source=http://deb.debian.org/debian" >> $f
+		echo "keyring=debian-archive-keyring" >> $f
+		echo "components=main contrib non-free" >> $f
+		echo "suite=$config_release" >> $f
+		echo >> $f
+		echo "[Security]" >> $f
+		echo "packages=" >> $f
+		echo "source=http://security.debian.org/" >> $f
+		echo "keyring=debian-archive-keyring" >> $f
+		echo "components=main contrib non-free" >> $f
+		echo "suite=$config_release/updates" >> $f
+	elif [[ "$config_distro" == "ubuntu" ]] ; then
+		echo "[Ubuntu]" >> $f
+		echo "packages=$config_packages $extra_packages" >> $f
+		if [[ "$config_arch" != "amd64" ]] && [[ "$config_arch" != "i386" ]] ; then
+			echo "source=http://ports.ubuntu.com/ubuntu-ports" >> $f
+		else
+			echo "source=http://archive.ubuntu.com/ubuntu" >> $f
+		fi
+		echo "keyring=ubuntu-keyring" >> $f
+		echo "components=main restricted universe multiverse" >> $f
+		echo "suite=$config_release" >> $f
+		echo >> $f
+		echo "[Security]" >> $f
+		echo "packages=" >> $f
+		if [[ "$config_arch" != "amd64" ]] && [[ "$config_arch" != "i386" ]] ; then
+			echo "source=http://ports.ubuntu.com/ubuntu-ports" >> $f
+		else
+			echo "source=http://archive.ubuntu.com/ubuntu" >> $f
+		fi
+		echo "keyring=ubuntu-keyring" >> $f
+		echo "components=main restricted universe multiverse" >> $f
+		echo "suite=$config_release-security" >> $f
+	fi
+}
+
+# assumes require_config has already been ran
+function install_static_qemu()
+{
+	if [[ "$PWD" == "/" ]] ; then
+		echo "install_static_qemu function cowardly refusing to run."
+		exit
+	fi
+
+	if [[ "$config_arch" == "armel" ]] || [[ "$config_arch" == "armhf" ]] ; then
+		cp /usr/bin/qemu-arm-static "$DIBS_TARGET/usr/bin"
+	elif [[ "$config_arch" == "arm64" ]] ; then
+		cp /usr/bin/qemu-aarch64-static "$DIBS_TARGET/usr/bin"
+	fi
+}
+
+# assumes require_config has already been ran
+function uninstall_static_qemu()
+{
+	if [[ "$PWD" == "/" ]] ; then
+		echo "uninstall_static_qemu function cowardly refusing to run."
+		exit
+	fi
+
+	if [[ "$config_arch" == "armel" ]] || [[ "$config_arch" == "armhf" ]] ; then
+		rm -f "$DIBS_TARGET/usr/bin/qemu-arm-static"
+	elif [[ "$config_arch" == "arm64" ]] ; then
+		rm -f "$DIBS_TARGET/usr/bin/qemu-aarch64-static"
+	fi
+}
+
+function dibs_build()
+{
+	require_config
+
+	pushd "$DIBS_WORKSPACE" > /dev/null
+	export DIBS_TARGET="$DIBS_WORKSPACE/target"
+	mkdir -p "$DIBS_TARGET"
+	multistrap -f "$DIBS_WORKSPACE/config/multistrap.conf"
+	cd "$DIBS_TARGET"
+	install_static_qemu
+	chroot "$DIBS_TARGET" /stage2.sh
+	source "$DIBS_WORKSPACE/dibs/network"
+	uninstall_static_qemu
+	dibs_tar
+	popd > /dev/null
+}	
+
+function unmount_target_subdirs()
+{
+	IFS=$'\n'
+	for line in $(mount) ; do
+		local mountpoint="$(echo $line | cut -d' ' -f3)"
+		if [ "${mountpoint##$DIBS_TARGET/}" != "${mountpoint}" ] ; then
+			umount -R "$mountpoint"
+		fi
+	done
+	unset IFS
+}
+
+function dibs_untar()
+{
+	require_rootfs_tar
+
+	echo "Expanding rootfs.tar to target, please wait..."
+
+	export DIBS_TARGET="$DIBS_WORKSPACE/target"
+	mkdir -p "$DIBS_TARGET"
+	pushd "$DIBS_TARGET" > /dev/null
+	tar -xf "$DIBS_WORKSPACE/rootfs.tar"
+	popd > /dev/null
+}
+
+function dibs_tar()
+{
+	require_target_dir
+	unmount_target_subdirs
+
+	echo "Storing target directory as rootfs.tar, please wait..."
+	pushd "$DIBS_TARGET" > /dev/null
+	tar --one-file-system -cf "$DIBS_WORKSPACE/rootfs.tar" .
+	popd > /dev/null
+	rm -rf --one-file-system "$DIBS_TARGET"
+}
+
+function dibs_shell()
+{
+	require_config
+
+	dibs_untar
+	install_static_qemu
+	mount -t devtmpfs devtmpfs "$DIBS_TARGET/dev"
+	mount -t tmpfs tmpfs "$DIBS_TARGET/tmp"
+	mount -t proc proc "$DIBS_TARGET/proc"
+
+	local f="$DIBS_TARGET/chroot.sh"
+	echo "#!/bin/bash" > $f
+	echo >> $f
+	echo "export LC_ALL=C LANGUAGE=C LANG=C" >> $f
+	echo "rm -- \$0" >> $f
+	echo "exec /bin/bash" >> $f
+	chmod 755 $f
+	chroot "$DIBS_TARGET" /chroot.sh
+	uninstall_static_qemu
+	dibs_tar
+}
+
+function dibs_help()
+{
+	command=$1
+	case "$1" in
+		board)
+			echo "board: dibs board [name]"
+			echo "    Initializes a workspace with a given board name."
+			;;
+		config)
+			echo "config: dibs config [board]"
+			echo "    Pre-build configuration. First runs kconfig-mconfig and then"
+			echo "    generates output files."
+			;;
+		regen)
+			echo "regen: dibs regen"
+			echo "    Rebuilds all configuration dependent files such as multistrap.conf."
+			;;
+		build)
+			echo "build: dibs build"
+			echo "    Runs multistrap and stage2 chroot processes."
+			;;
+		shell)
+			echo "shell: dibs shell"
+			echo "    Extracts the rootfs into target, starts a chroot shell and"
+			echo "    re-tars the directory when the chroot exits."
+			;;
+		tar)
+			echo "tar: dibs tar"
+			echo "    Makes a rootfs.tar from the contents of target."
+			;;
+		untar)
+			echo "untar: dibs untar"
+			echo "    Extracts a rootfs.tar file into target directory."
+			;;
+		*)
+			echo "Usage:"
+			echo " board"
+			echo " build"
+			echo " config [board]"
+			echo " regen"
+			echo " shell"
+			echo " tar"
+			echo " untar"
+			;;
+	esac
+}
+
+command=$1
+shift
+
+case "$command" in
+	board)
+		dibs_board "$@"
+		;;
+	config)
+		dibs_config "$@"
+		;;
+	regen)
+		dibs_regen "$@"
+		;;
+	build)
+		dibs_build "$@"
+		;;
+	shell)
+		dibs_shell "$@"
+		;;
+	untar)
+		dibs_untar "$@"
+		;;
+	tar)
+		dibs_tar "$@"
+		;;
+	help|"")
+		dibs_help "$@"
+		;;
+	*)
+		echo "Unknown command, see \"dibs help\"."
+		;;
+esac
+

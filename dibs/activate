@@ -1,4 +1,4 @@
-# This file must be used with "source bin/activate" *from bash*
+# This file must be used with "source activate" *from bash*
 # you cannot run it directly
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]] ; then
@@ -42,11 +42,11 @@ if [[ -z "$(which qemu-arm-static)" ]] ; then
 fi
 
 if [ ! -x "$DIBS_ROOT/host/bin/kconfig" ] ; then
-	make -C "$DIBS_ROOT/tools" "$DIBS_ROOT/host/bin/kconfig" || exit 
+	make -C "$DIBS_ROOT/dibs" "$DIBS_ROOT/host/bin/kconfig" || exit 
 fi
 
 if [ ! -x "$DIBS_ROOT/host/bin/dibs" ] ; then
-	ln -sf "$DIBS_ROOT/tools/dibs" "$DIBS_ROOT/host/bin"
+	ln -sf "$DIBS_ROOT/dibs/dibs" "$DIBS_ROOT/host/bin"
 fi
 
 deactivate () {

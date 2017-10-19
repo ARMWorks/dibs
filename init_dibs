@@ -8,4 +8,4 @@ if [[ $(id -u) -ne 0 ]] ; then
 	exit
 fi
 
-exec bash --init-file ${DIBS_ROOT}/tools/activate
+exec bash --init-file ${DIBS_ROOT}/dibs/activate
