@@ -103,6 +103,8 @@ function require_config()
 		config_process_manager="systemd"
 	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s PROCESS_MANAGER_SYSVINIT)" ]] ; then
 		config_process_manager="sysvinit"
+	elif [[ "y" == "$(kconfig-tweak -- file "$DIBS_WORKSPACE/config/config" -s PROCESS_MANAGER_UPSTART)" ]] ; then
+		config_process_manager="upstart"
 	fi
 
 	require_config_packages
@@ -122,7 +124,9 @@ function require_target_dir()
 {
 	require_workspace
 
-	if [[ ! -d "$DIBS_WORKSPACE/target" ]] ; then
+	export DIBS_TARGET="$DIBS_WORKSPACE/target"
+
+	if [[ ! -d "$DIBS_TARGET" ]] ; then
 		echo "No target filesystem found. Did you run \"dibs untar\"?"
 		exit
 	fi
@@ -162,9 +166,11 @@ function dibs_regen()
 
 	local extra_packages
 	if [[ "$config_process_manager" == "systemd" ]] ; then
-		extra_packages="systemd systemd-sysv"
+		extra_packages="systemd systemd-sysv udev"
 	elif [[ "$config_process_manager" == "sysvinit" ]] ; then
-		extra_packages="sysvinit-core"
+		extra_packages="sysvinit-core udev"
+	elif [[ "$config_process_manager" == "upstart" ]] ; then
+		extra_packages="upstart upstart-udev-bridge udev"
 	fi
 
 	local f="$DIBS_WORKSPACE/config/multistrap.conf"
@@ -176,7 +182,6 @@ function dibs_regen()
 	echo "cleanup=true" >> $f
 	echo "arch=$config_arch" >> $f
 	echo "directory=target" >> $f
-	echo "debconfseed=config/preseed" >> $f
 	echo "configscript=config/stage2.sh" >> $f
 	echo >> $f
 	if [[ "$config_distro" == "debian" ]] ; then
@@ -184,12 +189,14 @@ function dibs_regen()
 		echo "packages=$config_packages $extra_packages" >> $f
 		echo "source=http://deb.debian.org/debian" >> $f
 		echo "keyring=debian-archive-keyring" >> $f
+		echo "components=main contrib non-free" >> $f
 		echo "suite=$config_release" >> $f
 		echo >> $f
 		echo "[Security]" >> $f
 		echo "packages=" >> $f
 		echo "source=http://security.debian.org/" >> $f
 		echo "keyring=debian-archive-keyring" >> $f
+		echo "components=main contrib non-free" >> $f
 		echo "suite=$config_release/updates" >> $f
 	elif [[ "$config_distro" == "ubuntu" ]] ; then
 		echo "[Ubuntu]" >> $f
@@ -200,7 +207,9 @@ function dibs_regen()
 			echo "source=http://archive.ubuntu.com/ubuntu" >> $f
 		fi
 		echo "keyring=ubuntu-keyring" >> $f
+		echo "components=main restricted universe multiverse" >> $f
 		echo "suite=$config_release" >> $f
+		echo >> $f
 		echo "[Security]" >> $f
 		echo "packages=" >> $f
 		if [[ "$config_arch" != "amd64" ]] && [[ "$config_arch" != "i386" ]] ; then
@@ -209,6 +218,7 @@ function dibs_regen()
 			echo "source=http://archive.ubuntu.com/ubuntu" >> $f
 		fi
 		echo "keyring=ubuntu-keyring" >> $f
+		echo "components=main restricted universe multiverse" >> $f
 		echo "suite=$config_release-security" >> $f
 	fi
 }
@@ -222,9 +232,9 @@ function install_static_qemu()
 	fi
 
 	if [[ "$config_arch" == "armel" ]] || [[ "$config_arch" == "armhf" ]] ; then
-		cp /usr/bin/qemu-arm-static "$DIBS_WORKSPACE/target/usr/bin"
+		cp /usr/bin/qemu-arm-static "$DIBS_TARGET/usr/bin"
 	elif [[ "$config_arch" == "arm64" ]] ; then
-		cp /usr/bin/qemu-aarch64-static "$DIBS_WORKSPACE/target/usr/bin"
+		cp /usr/bin/qemu-aarch64-static "$DIBS_TARGET/usr/bin"
 	fi
 }
 
@@ -237,9 +247,9 @@ function uninstall_static_qemu()
 	fi
 
 	if [[ "$config_arch" == "armel" ]] || [[ "$config_arch" == "armhf" ]] ; then
-		rm -f "$DIBS_WORKSPACE/target/usr/bin/qemu-arm-static"
+		rm -f "$DIBS_TARGET/usr/bin/qemu-arm-static"
 	elif [[ "$config_arch" == "arm64" ]] ; then
-		rm -f "$DIBS_WORKSPACE/target/usr/bin/qemu-aarch64-static"
+		rm -f "$DIBS_TARGET/usr/bin/qemu-aarch64-static"
 	fi
 }
 
@@ -248,11 +258,12 @@ function dibs_build()
 	require_config
 
 	pushd "$DIBS_WORKSPACE" > /dev/null
-	mkdir -p target
-	multistrap -f config/multistrap.conf
-	cd target
+	export DIBS_TARGET="$DIBS_WORKSPACE/target"
+	mkdir -p "$DIBS_TARGET"
+	multistrap -f "$DIBS_WORKSPACE/config/multistrap.conf"
+	cd "$DIBS_TARGET"
 	install_static_qemu
-	chroot . /bin/bash /stage2.sh
+	chroot "$DIBS_TARGET" /stage2.sh
 	source "$DIBS_WORKSPACE/dibs/network"
 	uninstall_static_qemu
 	dibs_tar
@@ -264,7 +275,7 @@ function unmount_target_subdirs()
 	IFS=$'\n'
 	for line in $(mount) ; do
 		local mountpoint="$(echo $line | cut -d' ' -f3)"
-		if [ "${mountpoint##$DIBS_WORKSPACE/target/}" != "${mountpoint}" ] ; then
+		if [ "${mountpoint##$DIBS_TARGET/}" != "${mountpoint}" ] ; then
 			umount -R "$mountpoint"
 		fi
 	done
@@ -275,8 +286,11 @@ function dibs_untar()
 {
 	require_rootfs_tar
 
-	mkdir -p "$DIBS_WORKSPACE/target"
-	pushd "$DIBS_WORKSPACE/target" > /dev/null
+	echo "Expanding rootfs.tar to target, please wait..."
+
+	export DIBS_TARGET="$DIBS_WORKSPACE/target"
+	mkdir -p "$DIBS_TARGET"
+	pushd "$DIBS_TARGET" > /dev/null
 	tar -xf "$DIBS_WORKSPACE/rootfs.tar"
 	popd > /dev/null
 }
@@ -286,10 +300,11 @@ function dibs_tar()
 	require_target_dir
 	unmount_target_subdirs
 
-	pushd "$DIBS_WORKSPACE/target" > /dev/null
+	echo "Storing target directory as rootfs.tar, please wait..."
+	pushd "$DIBS_TARGET" > /dev/null
 	tar --one-file-system -cf "$DIBS_WORKSPACE/rootfs.tar" .
 	popd > /dev/null
-	rm -rf --one-file-system "$DIBS_WORKSPACE/target"
+	rm -rf --one-file-system "$DIBS_TARGET"
 }
 
 function dibs_shell()
@@ -298,10 +313,18 @@ function dibs_shell()
 
 	dibs_untar
 	install_static_qemu
-	mount -t devtmpfs devtmpfs "$DIBS_WORKSPACE/target/dev"
-	mount -t tmpfs tmpfs "$DIBS_WORKSPACE/target/tmp"
-	mount -t proc proc "$DIBS_WORKSPACE/target/proc"
-	chroot "$DIBS_WORKSPACE/target" /bin/bash
+	mount -t devtmpfs devtmpfs "$DIBS_TARGET/dev"
+	mount -t tmpfs tmpfs "$DIBS_TARGET/tmp"
+	mount -t proc proc "$DIBS_TARGET/proc"
+
+	local f="$DIBS_TARGET/chroot.sh"
+	echo "#!/bin/bash" > $f
+	echo >> $f
+	echo "export LC_ALL=C LANGUAGE=C LANG=C" >> $f
+	echo "rm -- \$0" >> $f
+	echo "exec /bin/bash" >> $f
+	chmod 755 $f
+	chroot "$DIBS_TARGET" /chroot.sh
 	uninstall_static_qemu
 	dibs_tar
 }

@@ -63,6 +63,9 @@ menu "Platform"
 			bool "systemd"
 		config PROCESS_MANAGER_SYSVINIT
 			bool "sysvinit"
+		config PROCESS_MANAGER_UPSTART
+			bool "upstart"
+			depends on DISTRO_UBUNTU
 	endchoice
 
 	source "board/Kconfig"
