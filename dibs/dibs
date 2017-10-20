@@ -44,19 +44,19 @@ function require_workspace()
 		exit
 	fi
 
-	export DIBS_CONFIG="$DIBS_WORKSPACE/config/config"
+	export KCONFIG_CONFIG="$DIBS_WORKSPACE/config/config"
 }
 
 function require_config()
 {
 	require_workspace
 
-	if [[ ! -f "$DIBS_CONFIG" ]] ; then
+	if [[ ! -f "$KCONFIG_CONFIG" ]] ; then
 		echo "Config not found. Try \"dibs config\"."
 		exit
 	fi
 
-	source "$DIBS_CONFIG"
+	source "$KCONFIG_CONFIG"
 
 	CONFIG_ARCH=
 	if [[ "y" == "$CONFIG_ARCH_AMD64" ]] ; then
