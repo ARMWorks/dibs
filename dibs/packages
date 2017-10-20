@@ -30,12 +30,12 @@ IFS=' '
 
 function require_config_packages()
 {
-	config_packages="$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s CONFIG_PACKAGE_USERDEFINED)"
+	CONFIG_PACKAGES="$CONFIG_PACKAGE_USERDEFINED"
 
 	for package in "${all_packages[@]}" ; do
-		local package_var=CONFIG_PACKAGE_$(echo ${package} | tr '[a-z-]' '[A-Z_]')
-		if [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s $package_var)" ]] ; then
-			config_packages="$config_packages $package"
+		local var="CONFIG_PACKAGE_$(echo "${package}" | tr '[a-z-]' '[A-Z_]')"
+		if [[ "y" == "${!var}" ]] ; then
+			CONFIG_PACKAGES="$config_packages $package"
 		fi
 	done
 }

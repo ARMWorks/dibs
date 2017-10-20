@@ -44,70 +44,66 @@ function require_workspace()
 		exit
 	fi
 
-	KCONFIG_CONFIG="${DIBS_WORKSPACE:-/tmp}/config/config"
-	export KCONFIG_CONFIG
-}
-
-function config_get()
-{
-	kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s "$1"
+	export DIBS_CONFIG="$DIBS_WORKSPACE/config/config"
 }
 
 function require_config()
 {
 	require_workspace
 
-	if [[ ! -f "$KCONFIG_CONFIG" ]] ; then
+	if [[ ! -f "$DIBS_CONFIG" ]] ; then
 		echo "Config not found. Try \"dibs config\"."
 		exit
 	fi
 
-	config_arch=""
-	if [[ "y" == "$(config_get ARCH_AMD64)" ]] ; then
-		config_arch="amd64"
-	elif [[ "y" == "$(config_get ARCH_ARM64)" ]] ; then
-		config_arch="arm64"
-	elif [[ "y" == "$(config_get ARCH_ARMEL)" ]] ; then
-		config_arch="armel"
-	elif [[ "y" == "$(config_get ARCH_ARMHF)" ]] ; then
-		config_arch="armhf"
-	elif [[ "y" == "$(config_get ARCH_I386)" ]] ; then
-		config_arch="i386"
+	source "$DIBS_CONFIG"
+
+	CONFIG_ARCH=
+	if [[ "y" == "$CONFIG_ARCH_AMD64" ]] ; then
+		CONFIG_ARCH="amd64"
+	elif [[ "y" == "$CONFIG_ARCH_ARM64" ]] ; then
+		CONFIG_ARCH="arm64"
+	elif [[ "y" == "$CONFIG_ARCH_ARMEL" ]] ; then
+		CONFIG_ARCH="armel"
+	elif [[ "y" == "$CONFIG_ARCH_ARMHF" ]] ; then
+		CONFIG_ARCH="armhf"
+	elif [[ "y" == "$CONFIG_ARCH_I386" ]] ; then
+		CONFIG_ARCH="i386"
 	fi
 
-	config_distro=""
-	config_release=""
-	if [[ "y" == "$(config_get DISTRO_DEBIAN)" ]] ; then
-		config_distro="debian"
-		if [[ "y" == "$(config_get RELEASE_DEBIAN_WHEEZY)" ]]; then
-			config_release="wheezy"
-		elif [[ "y" == "$(config_get RELEASE_DEBIAN_JESSIE)" ]]; then
-			config_release="jessie"
-		elif [[ "y" == "$(config_get RELEASE_DEBIAN_STRETCH)" ]]; then
-			config_release="stretch"
-		elif [[ "y" == "$(config_get RELEASE_DEBIAN_TESTING)" ]]; then
-			config_release="testing"
+	CONFIG_DISTRO=
+	CONFIG_RELEASE=
+	if [[ "y" == "$CONFIG_DISTRO_DEBIAN" ]] ; then
+		CONFIG_DISTRO="debian"
+		if [[ "y" == "$CONFIG_RELEASE_DEBIAN_WHEEZY" ]]; then
+			CONFIG_RELEASE="wheezy"
+		elif [[ "y" == "$CONFIG_RELEASE_DEBIAN_JESSIE" ]]; then
+			CONFIG_RELEASE="jessie"
+		elif [[ "y" == "$CONFIG_RELEASE_DEBIAN_STRETCH" ]]; then
+			CONFIG_RELEASE="stretch"
+		elif [[ "y" == "$CONFIG_RELEASE_DEBIAN_TESTING" ]]; then
+			CONFIG_RELEASE="testing"
 		fi
-	elif [[ "y" == "$(config_get DISTRO_UBUNTU)" ]] ; then
-		config_distro="ubuntu"
-		if [[ "y" == "$(config_get RELEASE_UBUNTU_TRUSTY)" ]]; then
-			config_release="trusty"
-		elif [[ "y" == "$(config_get RELEASE_UBUNTU_XENIAL)" ]]; then
-			config_release="xenial"
-		elif [[ "y" == "$(config_get RELEASE_UBUNTU_ZESTY)" ]]; then
-			config_release="zesty"
-		elif [[ "y" == "$(config_get RELEASE_UBUNTU_ARTFUL)" ]]; then
-			config_release="artful"
+	elif [[ "y" == "$CONFIG_DISTRO_UBUNTU" ]] ; then
+		CONFIG_DISTRO="ubuntu"
+		if [[ "y" == "$CONFIG_RELEASE_UBUNTU_TRUSTY" ]]; then
+			CONFIG_RELEASE="trusty"
+		elif [[ "y" == "$CONFIG_RELEASE_UBUNTU_XENIAL" ]]; then
+			CONFIG_RELEASE="xenial"
+		elif [[ "y" == "$CONFIG_RELEASE_UBUNTU_ZESTY" ]]; then
+			CONFIG_RELEASE="zesty"
+		elif [[ "y" == "$CONFIG_RELEASE_UBUNTU_ARTFUL" ]]; then
+			CONFIG_RELEASE="artful"
 		fi
 	fi
 
-	config_process_manager=""
-	if [[ "y" == "$(config_get PROCESS_MANAGER_SYSTEMD)" ]] ; then
-		config_process_manager="systemd"
-	elif [[ "y" == "$(config_get PROCESS_MANAGER_SYSVINIT)" ]] ; then
-		config_process_manager="sysvinit"
-	elif [[ "y" == "$(kconfig-tweak -- file "$DIBS_WORKSPACE/config/config" -s PROCESS_MANAGER_UPSTART)" ]] ; then
-		config_process_manager="upstart"
+	CONFIG_PROCESS_MANAGER=
+	if [[ "y" == "$CONFIG_PROCESS_MANAGER_SYSTEMD" ]] ; then
+		CONFIG_PROCESS_MANAGER="systemd"
+	elif [[ "y" == "$CONFIG_PROCESS_MANAGER_SYSVINIT" ]] ; then
+		CONFIG_PROCESS_MANAGER="sysvinit"
+	elif [[ "y" == "$CONFIG_PROCESS_MANAGER_UPSTART" ]] ; then
+		CONFIG_PROCESS_MANAGER="upstart"
 	fi
 
 	require_config_packages
@@ -168,11 +164,11 @@ function dibs_regen()
 	chmod 755 $f
 
 	local extra_packages
-	if [[ "$config_process_manager" == "systemd" ]] ; then
+	if [[ "$CONFIG_PROCESS_MANAGER" == "systemd" ]] ; then
 		extra_packages="systemd systemd-sysv udev"
-	elif [[ "$config_process_manager" == "sysvinit" ]] ; then
+	elif [[ "$CONFIG_PROCESS_MANAGER" == "sysvinit" ]] ; then
 		extra_packages="sysvinit-core udev"
-	elif [[ "$config_process_manager" == "upstart" ]] ; then
+	elif [[ "$CONFIG_PROCESS_MANAGER" == "upstart" ]] ; then
 		extra_packages="upstart upstart-udev-bridge udev"
 	fi
 
@@ -180,49 +176,49 @@ function dibs_regen()
 	echo "[General]" > $f
 	echo "noauth=true" >> $f # FIXME ?
 	echo "unpack=true" >> $f
-	echo "debootstrap=${config_distro^} Security" >> $f
-	echo "aptsources=${config_distro^} Security" >> $f
+	echo "debootstrap=${CONFIG_DISTRO^} Security" >> $f
+	echo "aptsources=${CONFIG_DISTRO^} Security" >> $f
 	echo "cleanup=true" >> $f
-	echo "arch=$config_arch" >> $f
+	echo "arch=$CONFIG_ARCH" >> $f
 	echo "directory=target" >> $f
 	echo "configscript=config/stage2.sh" >> $f
 	echo >> $f
-	if [[ "$config_distro" == "debian" ]] ; then
+	if [[ "$CONFIG_DISTRO" == "debian" ]] ; then
 		echo "[Debian]" >> $f
-		echo "packages=$config_packages $extra_packages" >> $f
+		echo "packages=$CONFIG_PACKAGES $extra_packages" >> $f
 		echo "source=http://deb.debian.org/debian" >> $f
 		echo "keyring=debian-archive-keyring" >> $f
 		echo "components=main contrib non-free" >> $f
-		echo "suite=$config_release" >> $f
+		echo "suite=$CONFIG_RELEASE" >> $f
 		echo >> $f
 		echo "[Security]" >> $f
 		echo "packages=" >> $f
 		echo "source=http://security.debian.org/" >> $f
 		echo "keyring=debian-archive-keyring" >> $f
 		echo "components=main contrib non-free" >> $f
-		echo "suite=$config_release/updates" >> $f
-	elif [[ "$config_distro" == "ubuntu" ]] ; then
+		echo "suite=$CONFIG_RELEASE/updates" >> $f
+	elif [[ "$CONFIG_DISTRO" == "ubuntu" ]] ; then
 		echo "[Ubuntu]" >> $f
-		echo "packages=$config_packages $extra_packages" >> $f
-		if [[ "$config_arch" != "amd64" ]] && [[ "$config_arch" != "i386" ]] ; then
+		echo "packages=$CONFIG_PACKAGES $extra_packages" >> $f
+		if [[ "$CONFIG_ARCH" != "amd64" ]] && [[ "$CONFIG_ARCH" != "i386" ]] ; then
 			echo "source=http://ports.ubuntu.com/ubuntu-ports" >> $f
 		else
 			echo "source=http://archive.ubuntu.com/ubuntu" >> $f
 		fi
 		echo "keyring=ubuntu-keyring" >> $f
 		echo "components=main restricted universe multiverse" >> $f
-		echo "suite=$config_release" >> $f
+		echo "suite=$CONFIG_RELEASE" >> $f
 		echo >> $f
 		echo "[Security]" >> $f
 		echo "packages=" >> $f
-		if [[ "$config_arch" != "amd64" ]] && [[ "$config_arch" != "i386" ]] ; then
+		if [[ "$CONFIG_ARCH" != "amd64" ]] && [[ "$CONFIG_ARCH" != "i386" ]] ; then
 			echo "source=http://ports.ubuntu.com/ubuntu-ports" >> $f
 		else
 			echo "source=http://archive.ubuntu.com/ubuntu" >> $f
 		fi
 		echo "keyring=ubuntu-keyring" >> $f
 		echo "components=main restricted universe multiverse" >> $f
-		echo "suite=$config_release-security" >> $f
+		echo "suite=$CONFIG_RELEASE-security" >> $f
 	fi
 }
 
@@ -234,9 +230,9 @@ function install_static_qemu()
 		exit
 	fi
 
-	if [[ "$config_arch" == "armel" ]] || [[ "$config_arch" == "armhf" ]] ; then
+	if [[ "$CONFIG_ARCH" == "armel" ]] || [[ "$CONFIG_ARCH" == "armhf" ]] ; then
 		cp /usr/bin/qemu-arm-static "$DIBS_TARGET/usr/bin"
-	elif [[ "$config_arch" == "arm64" ]] ; then
+	elif [[ "$CONFIG_ARCH" == "arm64" ]] ; then
 		cp /usr/bin/qemu-aarch64-static "$DIBS_TARGET/usr/bin"
 	fi
 }
@@ -249,9 +245,9 @@ function uninstall_static_qemu()
 		exit
 	fi
 
-	if [[ "$config_arch" == "armel" ]] || [[ "$config_arch" == "armhf" ]] ; then
+	if [[ "$CONFIG_ARCH" == "armel" ]] || [[ "$CONFIG_ARCH" == "armhf" ]] ; then
 		rm -f "$DIBS_TARGET/usr/bin/qemu-arm-static"
-	elif [[ "$config_arch" == "arm64" ]] ; then
+	elif [[ "$CONFIG_ARCH" == "arm64" ]] ; then
 		rm -f "$DIBS_TARGET/usr/bin/qemu-aarch64-static"
 	fi
 }
