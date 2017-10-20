@@ -48,6 +48,11 @@ function require_workspace()
 	export KCONFIG_CONFIG
 }
 
+function config_get()
+{
+	kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s "$1"
+}
+
 function require_config()
 {
 	require_workspace
@@ -57,51 +62,49 @@ function require_config()
 		exit
 	fi
 
-	config_board="$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s BOARD)"
-
 	config_arch=""
-	if [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s ARCH_AMD64)" ]] ; then
+	if [[ "y" == "$(config_get ARCH_AMD64)" ]] ; then
 		config_arch="amd64"
-	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s ARCH_ARM64)" ]] ; then
+	elif [[ "y" == "$(config_get ARCH_ARM64)" ]] ; then
 		config_arch="arm64"
-	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s ARCH_ARMEL)" ]] ; then
+	elif [[ "y" == "$(config_get ARCH_ARMEL)" ]] ; then
 		config_arch="armel"
-	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s ARCH_ARMHF)" ]] ; then
+	elif [[ "y" == "$(config_get ARCH_ARMHF)" ]] ; then
 		config_arch="armhf"
-	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s ARCH_I386)" ]] ; then
+	elif [[ "y" == "$(config_get ARCH_I386)" ]] ; then
 		config_arch="i386"
 	fi
 
 	config_distro=""
 	config_release=""
-	if [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s DISTRO_DEBIAN)" ]] ; then
+	if [[ "y" == "$(config_get DISTRO_DEBIAN)" ]] ; then
 		config_distro="debian"
-		if [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s RELEASE_DEBIAN_WHEEZY)" ]]; then
+		if [[ "y" == "$(config_get RELEASE_DEBIAN_WHEEZY)" ]]; then
 			config_release="wheezy"
-		elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s RELEASE_DEBIAN_JESSIE)" ]]; then
+		elif [[ "y" == "$(config_get RELEASE_DEBIAN_JESSIE)" ]]; then
 			config_release="jessie"
-		elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s RELEASE_DEBIAN_STRETCH)" ]]; then
+		elif [[ "y" == "$(config_get RELEASE_DEBIAN_STRETCH)" ]]; then
 			config_release="stretch"
-		elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s RELEASE_DEBIAN_TESTING)" ]]; then
+		elif [[ "y" == "$(config_get RELEASE_DEBIAN_TESTING)" ]]; then
 			config_release="testing"
 		fi
-	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s DISTRO_UBUNTU)" ]] ; then
+	elif [[ "y" == "$(config_get DISTRO_UBUNTU)" ]] ; then
 		config_distro="ubuntu"
-		if [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s RELEASE_UBUNTU_TRUSTY)" ]]; then
+		if [[ "y" == "$(config_get RELEASE_UBUNTU_TRUSTY)" ]]; then
 			config_release="trusty"
-		elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s RELEASE_UBUNTU_XENIAL)" ]]; then
+		elif [[ "y" == "$(config_get RELEASE_UBUNTU_XENIAL)" ]]; then
 			config_release="xenial"
-		elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s RELEASE_UBUNTU_ZESTY)" ]]; then
+		elif [[ "y" == "$(config_get RELEASE_UBUNTU_ZESTY)" ]]; then
 			config_release="zesty"
-		elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s RELEASE_UBUNTU_ARTFUL)" ]]; then
+		elif [[ "y" == "$(config_get RELEASE_UBUNTU_ARTFUL)" ]]; then
 			config_release="artful"
 		fi
 	fi
 
 	config_process_manager=""
-	if [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s PROCESS_MANAGER_SYSTEMD)" ]] ; then
+	if [[ "y" == "$(config_get PROCESS_MANAGER_SYSTEMD)" ]] ; then
 		config_process_manager="systemd"
-	elif [[ "y" == "$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s PROCESS_MANAGER_SYSVINIT)" ]] ; then
+	elif [[ "y" == "$(config_get PROCESS_MANAGER_SYSVINIT)" ]] ; then
 		config_process_manager="sysvinit"
 	elif [[ "y" == "$(kconfig-tweak -- file "$DIBS_WORKSPACE/config/config" -s PROCESS_MANAGER_UPSTART)" ]] ; then
 		config_process_manager="upstart"

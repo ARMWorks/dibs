@@ -2,23 +2,32 @@ menu "Network"
 	config NETWORK_HOSTNAME
 		string "Hostname"
 		default "dibs"
-	config NETWORK_NAMESERVER1
-		string "Nameserver 1"
-		default "8.8.8.8"
-	config NETWORK_NAMESERVER2
-		string "Nameserver 2"
-		default "8.8.4.4"
+
+	menuconfig NETWORK_RESOLVER
+		bool "Resolver configuration"
+	if NETWORK_RESOLVER
+		config NETWORK_RESOLVER_DOMAIN
+			string "domain"
+		config NETWORK_RESOLVER_SEARCH
+			string "search"
+		config NETWORK_RESOLVER_NS1
+			string "nameserver"
+			default "8.8.8.8"
+		config NETWORK_RESOLVER_NS2
+			string "nameserver"
+			default "8.8.4.4"
+	endif
 
 	menuconfig NETWORK_ETH0
 		bool "eth0"
 	if NETWORK_ETH0
 		choice NETWORK_ETH0_IP_TYPE
 			prompt "IP Type"
-			config NETWORK_ETH0_IP_DHCP
+			config NETWORK_ETH0_IP_TYPE_DHCP
 				bool "DHCP"
-			config NETWORK_ETH0_IP_MANUAL
+			config NETWORK_ETH0_IP_TYPE_MANUAL
 				bool "Manual"
-			config NETWORK_ETH0_IP_STATIC
+			config NETWORK_ETH0_IP_TYPE_STATIC
 				bool "Static"
 		endchoice
 		if NETWORK_ETH0_IP_STATIC
@@ -52,14 +61,14 @@ menu "Network"
 			string "Key"
 		choice NETWORK_WLAN0_IP_TYPE
 			prompt "IP Type"
-			config NETWORK_WLAN0_IP_DHCP
+			config NETWORK_WLAN0_IP_TYPE_DHCP
 				bool "DHCP"
-			config NETWORK_WLAN0_IP_MANUAL
+			config NETWORK_WLAN0_IP_TYPE_MANUAL
 				bool "Manual"
-			config NETWORK_WLAN0_IP_STATIC
+			config NETWORK_WLAN0_IP_TYPE_STATIC
 				bool "Static"
 		endchoice
-		if NETWORK_WLAN0_IP_STATIC
+		if NETWORK_WLAN0_IP_TYPE_STATIC
 			config NETWORK_WLAN0_IP_ADDR
 				string "IP Address"
 			config NETWORK_WLAN0_IP_NETMASK
@@ -68,6 +77,5 @@ menu "Network"
 				string "Gateway"
 		endif
 	endif
-	
 
 endmenu

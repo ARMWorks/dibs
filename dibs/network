@@ -1,4 +1,58 @@
-config_network_hostname="$(kconfig-tweak --file "$DIBS_WORKSPACE/config/config" -s NETWORK_HOSTNAME)"
+config_network_hostname="$(config_get NETWORK_HOSTNAME)"
+
+if [[ "y" == "$(config_get NETWORK_RESOLVER)" ]] ; then
+	config_network_resolver_domain="$(config_get NETWORK_RESOLVER_DOMAIN)"
+	config_network_resolver_search="$(config_get NETWORK_RESOLVER_SEARCH)"
+	config_network_resolver_ns1="$(config_get NETWORK_RESOLVER_NS1)"
+	config_network_resolver_ns2="$(config_get NETWORK_RESOLVER_NS2)"
+fi
+
+if [[ "y" == "$(config_get NETWORK_ETH0)" ]] ; then
+	config_network_eth0_ip_type=
+	if [[ "y" == "$(config_get NETWORK_ETH0_IP_TYPE_DHCP)" ]] ; then
+		config_network_eth0_ip_type="dhcp"
+	elif [[ "y" == "$(config_get NETWORK_ETH0_IP_TYPE_MANUAL)" ]] ; then
+		config_network_eth0_ip_type="manual"
+	elif [[ "y" == "$(config_get NETWORK_ETH0_IP_TYPE_STATIC)" ]] ; then
+		config_network_eth0_ip_type="static"
+	fi
+
+	if [[ "static" == "$config_network_eth0_ip_type" ]] ; then
+		config_network_eth0_ip_addr="$(config_get NETWORK_ETH0_IP_ADDR)"
+		config_network_eth0_ip_netmask="$(config_get NETWORK_ETH0_IP_NETMASK)"
+		config_network_eth0_ip_gateway="$(config_get NETWORK_ETH0_IP_GATEWAY)"
+	fi
+fi
+
+if [[ "y" == "$(config_get NETWORK_WLAN0)" ]] ; then
+	config_network_wlan0_ssid="$(config_get NETWORK_WLAN0_SSID)"
+
+	config_network_wlan0_type=
+	if [[ "y" == "$(config_get NETWORK_WLAN0_TYPE_OPEN)" ]] ; then
+		config_network_wlan0_type="open"
+	elif [[ "y" == "$(config_get NETWORK_WLAN0_TYPE_WEP)" ]] ; then
+		config_network_wlan0_type="wep"
+	elif [[ "y" == "$(config_get NETWORK_WLAN0_TYPE_WPA)" ]] ; then
+		config_network_wlan0_type="wpa"
+	elif [[ "y" == "$(config_get NETWORK_WLAN0_TYPE_WPA2)" ]] ; then
+		config_network_wlan0_type="wpa"
+	fi
+
+	config_network_wlan0_ip_type=
+	if [[ "y" == "$(config_get NETWORK_WLAN0_IP_TYPE_DHCP)" ]] ; then
+		config_network_wlan0_ip_type="dhcp"
+	elif [[ "y" == "$(config_get NETWORK_WLAN0_IP_TYPE_MANUAL)" ]] ; then
+		config_network_wlan0_ip_type="manual"
+	elif [[ "y" == "$(config_get NETWORK_WLAN0_IP_TYPE_STATIC)" ]] ; then
+		config_network_wlan0_ip_type="static"
+	fi
+
+	if [[ "static" == "$config_network_wlan0_ip_type" ]] ; then
+		config_network_wlan0_ip_addr="$(config_get NETWORK_WLAN0_IP_ADDR)"
+		config_network_wlan0_ip_netmask="$(config_get NETWORK_WLAN0_IP_NETMASK)"
+		config_network_wlan0_ip_gateway="$(config_get NETWORK_WLAN0_IP_GATEWAY)"
+	fi
+fi
 
 echo "$config_network_hostname" > "$DIBS_TARGET/etc/hostname"
 cat > "$DIBS_TARGET/etc/hosts" << EOF
@@ -11,8 +65,20 @@ ff02::1 ip6-allnodes
 ff02::2 ip6-allrouters
 EOF
 
-cat > "$DIBS_TARGET/etc/resolv.conf" << EOF
-nameserver 8.8.8.8
-nameserver 8.8.4.4
-EOF
+if [[ "y" == "$(config_get NETWORK_RESOLVER)" ]] ; then
+	f="$DIBS_TARGET/etc/resolv.conf"
+	truncate -s 0 "$f"
+	if [[ -n "$config_network_resolver_domain" ]]; then
+		echo "domain $config_network_resolver_domain" >> "$f"
+	fi
+	if [[ -n "$config_network_resolver_search" ]]; then
+		echo "search $config_network_resolver_search" >> "$f"
+	fi
+	if [[ -n "$config_network_resolver_ns1" ]]; then
+		echo "nameserver $config_network_resolver_ns1" >> "$f"
+	fi
+	if [[ -n "$config_network_resolver_ns2" ]]; then
+		echo "nameserver $config_network_resolver_ns2" >> "$f"
+	fi
+fi
 
