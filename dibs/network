@@ -1,5 +1,3 @@
-config_network_hostname="$CONFIG_NETWORK_HOSTNAME)"
-
 if [[ "y" == "$CONFIG_NETWORK_ETH0" ]] ; then
 	CONFIG_NETWORK_ETH0_IP_TYPE=
 	if [[ "y" == "$CONFIG_NETWORK_ETH0_IP_TYPE_DHCP" ]] ; then
@@ -33,10 +31,10 @@ if [[ "y" == "$CONFIG_NETWORK_WLAN0" ]] ; then
 	fi
 fi
 
-echo "$config_network_hostname" > "$DIBS_TARGET/etc/hostname"
+echo "$CONFIG_NETWORK_HOSTNAME" > "$DIBS_TARGET/etc/hostname"
 cat > "$DIBS_TARGET/etc/hosts" << EOF
 127.0.0.1	localhost
-127.0.1.1	$config_network_hostname
+127.0.1.1	$CONFIG_NETWORK_HOSTNAME
 
 # The following lines are desirable for IPv6 capable hosts
 ::1     ip6-localhost ip6-loopback

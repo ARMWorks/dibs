@@ -10,5 +10,6 @@ config BOARD
 
 source "dibs/Kconfig.platform"
 source "config/Kconfig.packages"
+source "dibs/Kconfig.system"
 source "dibs/Kconfig.network"
 

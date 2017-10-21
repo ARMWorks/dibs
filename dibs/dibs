@@ -263,6 +263,7 @@ function dibs_build()
 	cd "$DIBS_TARGET"
 	install_static_qemu
 	chroot "$DIBS_TARGET" /stage2.sh
+	source "$DIBS_WORKSPACE/dibs/system"
 	source "$DIBS_WORKSPACE/dibs/network"
 	uninstall_static_qemu
 	dibs_tar

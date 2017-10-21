@@ -77,5 +77,4 @@ menu "Network"
 				string "Gateway"
 		endif
 	endif
-
 endmenu

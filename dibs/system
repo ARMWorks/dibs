@@ -1,0 +1,46 @@
+if [[ -z "$DIBS_TARGET" ]] ; then
+	echo "DIBS_TARGET is not set."
+	exit 1
+fi
+
+if [[ "y" == "$CONFIG_SYSTEM_REMOVE_DOCUMENTATION" ]] ; then
+    find "$DIBS_TARGET/usr/share/doc" ! -name copyright -type f -delete
+    find "$DIBS_TARGET/usr/share/doc" -type d -delete > /dev/null 2>&1
+    rm -rf "$DIBS_TARGET/usr/share/man/"*
+    rm -rf "$DIBS_TARGET/usr/share/info/"*
+fi
+
+if [[ "y" == "$CONFIG_SYSTEM_REMOVE_LINTIAN" ]] ; then
+    rm -rf "$DIBS_TARGET/usr/share/lintian/"*
+fi
+
+if [[ "y" == "$CONFIG_SYSTEM_REMOVE_LOCALES" ]] ; then
+	pushd "$DIBS_TARGET/usr/share/locale/" > /dev/null
+	locales=(*)
+	popd > /dev/null
+
+	for retain in locale.alias "$CONFIG_SYSTEM_RETAIN_LOCALES" ; do
+		for i in "${!locales[@]}" ; do
+			if [[ "${locales[i]}" == "$retain" ]] ; then
+				unset locales[i]
+			fi
+		done
+	done
+
+	for locale in "${locales[@]}" ; do
+		rm -r "$DIBS_TARGET/usr/share/locale/$locale"
+	done
+fi
+
+if [[ -n "$CONFIG_SYSTEM_LOCALE" ]] ; then
+    if [[ -x "$DIBS_TARGET/usr/sbin/locale-gen" ]]; then
+        sed -i "s/^\([^#].*\)$/# \1/" "$DIBS_TARGT/etc/locale.gen"
+        sed -i "s/^# \($CONFIG_SYSTEM_LOCALE .\+\)$/\1/" "$DIBS_TARGET/etc/locale.gen"
+        chroot "$DIBS_TARGET" "/usr/sbin/locale-gen"
+    fi
+
+    if [[ -x "$DIBS_TARGET/usr/sbin/update-locale" ]]; then
+        chroot "$DIBS_TARGET" /usr/sbin/update-locale LANG=$CONFIG_SYSTEM_LOCALE
+    fi
+fi
+
