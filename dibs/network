@@ -1,4 +1,4 @@
-function dibs_network_postinstall()
+function network_postinstall()
 {
 	if [[ "y" == "$CONFIG_NETWORK_ETH0" ]] ; then
 		CONFIG_NETWORK_ETH0_IP_TYPE=

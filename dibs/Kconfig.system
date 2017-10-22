@@ -24,6 +24,8 @@ menu "System"
 			string "Retain these locales"
 			depends on SYSTEM_REMOVE_LOCALES
 			default "en_US"
+		config SYSTEM_REMOVE_LOGS
+			string "Remove logs"
 	endmenu
 	config SYSTEM_LOCALE
 		string "Locale"

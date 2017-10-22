@@ -25,10 +25,10 @@ if [[ -n "$DIBS_WORKSPACE" ]] ; then
 	fi
 fi
 
-IFS=$'\n' all_packages=($(sort <<<"${all_packages[*]}"))
+IFS=$'\n' all_packages=($(sort <<< "${all_packages[*]}"))
 IFS=' '
 
-function require_config_packages()
+function packages_config()
 {
 	CONFIG_PACKAGES="$CONFIG_PACKAGE_USERDEFINED"
 
@@ -40,7 +40,7 @@ function require_config_packages()
 	done
 }
 
-function generate_kconfig_packages()
+function packages_generate()
 {
 	local f="$DIBS_WORKSPACE/config/Kconfig.packages"
 	echo "# WARNING: This is an automatically-generated file, do not edit!" > $f

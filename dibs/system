@@ -1,14 +1,14 @@
-function dibs_system_postinstall()
+function system_postinstall()
 {
 	if [[ -z "$CONFIG_SYSTEM_ROOT_PASSWORD" ]] ; then
 		sed -i 's/\(root:\)[^:]*\(:\)/\1\2/' "$DIBS_TARGET/etc/shadow"
 	else
-		echo "root:$CONFIG_SYSTEM_ROOT_PASSWORD" | chpasswd -R "$DIBS_TARGET"
+		chpasswd -R "$DIBS_TARGET" <<< "root:$CONFIG_SYSTEM_ROOT_PASSWORD"
 	fi
 
 	if [[ "y" == "$CONFIG_SYSTEM_USER_ADD" ]] ; then
 		useradd -R "$DIBS_TARGET" -G $(echo "$CONFIG_SYSTEM_USER_GROUPS" | tr " " ",") "$SYSTEM_USER_USERNAME"
-		echo "$SYSTEM_USER_USERNAME:$CONFIG_SYSTEM_USER_PASSWORD" | chpasswd -R "$DIBS_TARGET"	
+		chpasswd -R "$DIBS_TARGET" <<< "$SYSTEM_USER_USERNAME:$CONFIG_SYSTEM_USER_PASSWORD"
 	fi
 
 	if [[ "y" == "$CONFIG_SYSTEM_REMOVE_DOCUMENTATION" ]] ; then
@@ -42,7 +42,7 @@ function dibs_system_postinstall()
 
 	if [[ "y" == "$CONFIG_SYSTEM_REMOVE_LOGS" ]] ; then
 		rm -rf "${DIBS_TARGET}/var/log/"*
-	fi	
+	fi
 
 	if [[ -n "$CONFIG_SYSTEM_LOCALE" ]] ; then
 		if [[ -x "$DIBS_TARGET/usr/sbin/locale-gen" ]]; then

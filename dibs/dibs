@@ -19,25 +19,6 @@ source "$DIBS_ROOT/dibs/packages"
 source "$DIBS_ROOT/dibs/system"
 source "$DIBS_ROOT/dibs/network"
 
-function dibs_board()
-{
-	local board=${1:-generic}
-
-	if [[ ! -d "$DIBS_ROOT/boards/$board" ]] ; then
-		echo "Board \"$board\" does not exist, aborting."
-		return
-	fi
-
-	echo "board=$board" > .dibs_workspace
-
-	mkdir -p board
-	shopt -s dotglob
-	cp -r "$DIBS_ROOT/boards/$board/"* board
-	shopt -u dotglob
-
-	mkdir -p config
-	ln -sf "$DIBS_ROOT/dibs" dibs
-}
 
 function require_workspace()
 {
@@ -108,7 +89,8 @@ function require_config()
 		CONFIG_PROCESS_MANAGER="upstart"
 	fi
 
-	require_config_packages
+	packages_config
+	declare -F workspace_config > /dev/null && workspace_config
 }
 
 function require_rootfs_tar()
@@ -133,11 +115,101 @@ function require_target_dir()
 	fi
 }
 
+# assumes require_config has already been ran
+function install_static_qemu()
+{
+	if [[ "$PWD" == "/" ]] ; then
+		echo "install_static_qemu function cowardly refusing to run."
+		exit
+	fi
+
+	if [[ "$CONFIG_ARCH" == "armel" ]] || [[ "$CONFIG_ARCH" == "armhf" ]] ; then
+		cp /usr/bin/qemu-arm-static "$DIBS_TARGET/usr/bin"
+	elif [[ "$CONFIG_ARCH" == "arm64" ]] ; then
+		cp /usr/bin/qemu-aarch64-static "$DIBS_TARGET/usr/bin"
+	fi
+}
+
+# assumes require_config has already been ran
+function uninstall_static_qemu()
+{
+	if [[ "$PWD" == "/" ]] ; then
+		echo "uninstall_static_qemu function cowardly refusing to run."
+		exit
+	fi
+
+	if [[ "$CONFIG_ARCH" == "armel" ]] || [[ "$CONFIG_ARCH" == "armhf" ]] ; then
+		rm -f "$DIBS_TARGET/usr/bin/qemu-arm-static"
+	elif [[ "$CONFIG_ARCH" == "arm64" ]] ; then
+		rm -f "$DIBS_TARGET/usr/bin/qemu-aarch64-static"
+	fi
+}
+
+function unmount_target_subdirs()
+{
+	IFS=$'\n'
+	for line in $(mount) ; do
+		local mountpoint="$(echo $line | cut -d' ' -f3)"
+		if [ "${mountpoint##$DIBS_TARGET/}" != "${mountpoint}" ] ; then
+			umount -R "$mountpoint"
+		fi
+	done
+	unset IFS
+}
+
+dibs_build_help="build: dibs build
+    Runs multistrap and stage2 chroot processes."
+function dibs_build()
+{
+	require_config
+
+	pushd "$DIBS_WORKSPACE" > /dev/null
+	export DIBS_TARGET="$DIBS_WORKSPACE/target"
+	mkdir -p "$DIBS_TARGET"
+	multistrap -f "$DIBS_WORKSPACE/config/multistrap.conf" || exit
+	cd "$DIBS_TARGET"
+	install_static_qemu
+	chroot "$DIBS_TARGET" /stage2.sh
+	network_postinstall
+	system_postinstall
+	declare -F workspace_postinstall > /dev/null && workspace_postinstall
+	uninstall_static_qemu
+	dibs_tar
+	popd > /dev/null
+}
+
+dibs_board_help="board: dibs board [name]
+    Initializes a workspace with a given board name."
+function dibs_board()
+{
+	local board=${1:-generic}
+
+	if [[ ! -d "$DIBS_ROOT/boards/$board" ]] ; then
+		echo "Board \"$board\" does not exist, aborting."
+		return
+	fi
+
+	DIBS_WORKSPACE="$PWD"
+
+	echo "board=$board" > .dibs_workspace
+
+	mkdir -p "$DIBS_WORKSPACE/board" "$DIBS_WORKSPACE/config"
+	shopt -s dotglob
+	cp -r "$DIBS_ROOT/boards/$board/"* "$DIBS_WORKSPACE/board"
+	shopt -u dotglob
+
+	ln -sf "$DIBS_ROOT/dibs" $DIBS_WORKSPACE
+}
+
+dibs_config_help="config: dibs config
+    Pre-build configuration. First runs kconfig-mconfig and then
+    generates output files."
 function dibs_config()
 {
 	require_workspace
 
-	generate_kconfig_packages
+	packages_generate
+	declare -F workspace_generate > /dev/null && workspace_generate
 	pushd "$DIBS_WORKSPACE" > /dev/null
 	kconfig-mconf "dibs/Kconfig"
 	popd > /dev/null
@@ -147,6 +219,15 @@ function dibs_config()
 	fi
 }
 
+function dibs_help()
+{
+	var=dibs_${1}_help
+	declare -p $var > /dev/null 2>&1 && echo "${!var}" || dibs_usage
+	exit 1
+}
+
+dibs_regen_help="regen: dibs regen
+    Rebuilds all configuration dependent files such as multistrap.conf."
 function dibs_regen()
 {
 	require_config
@@ -224,91 +305,10 @@ function dibs_regen()
 	fi
 }
 
-# assumes require_config has already been ran
-function install_static_qemu()
-{
-	if [[ "$PWD" == "/" ]] ; then
-		echo "install_static_qemu function cowardly refusing to run."
-		exit
-	fi
 
-	if [[ "$CONFIG_ARCH" == "armel" ]] || [[ "$CONFIG_ARCH" == "armhf" ]] ; then
-		cp /usr/bin/qemu-arm-static "$DIBS_TARGET/usr/bin"
-	elif [[ "$CONFIG_ARCH" == "arm64" ]] ; then
-		cp /usr/bin/qemu-aarch64-static "$DIBS_TARGET/usr/bin"
-	fi
-}
-
-# assumes require_config has already been ran
-function uninstall_static_qemu()
-{
-	if [[ "$PWD" == "/" ]] ; then
-		echo "uninstall_static_qemu function cowardly refusing to run."
-		exit
-	fi
-
-	if [[ "$CONFIG_ARCH" == "armel" ]] || [[ "$CONFIG_ARCH" == "armhf" ]] ; then
-		rm -f "$DIBS_TARGET/usr/bin/qemu-arm-static"
-	elif [[ "$CONFIG_ARCH" == "arm64" ]] ; then
-		rm -f "$DIBS_TARGET/usr/bin/qemu-aarch64-static"
-	fi
-}
-
-function dibs_build()
-{
-	require_config
-
-	pushd "$DIBS_WORKSPACE" > /dev/null
-	export DIBS_TARGET="$DIBS_WORKSPACE/target"
-	mkdir -p "$DIBS_TARGET"
-	multistrap -f "$DIBS_WORKSPACE/config/multistrap.conf"
-	cd "$DIBS_TARGET"
-	install_static_qemu
-	chroot "$DIBS_TARGET" /stage2.sh
-	dibs_network_postinstall
-	dibs_system_postinstall
-	uninstall_static_qemu
-	dibs_tar
-	popd > /dev/null
-}	
-
-function unmount_target_subdirs()
-{
-	IFS=$'\n'
-	for line in $(mount) ; do
-		local mountpoint="$(echo $line | cut -d' ' -f3)"
-		if [ "${mountpoint##$DIBS_TARGET/}" != "${mountpoint}" ] ; then
-			umount -R "$mountpoint"
-		fi
-	done
-	unset IFS
-}
-
-function dibs_untar()
-{
-	require_rootfs_tar
-
-	echo "Expanding rootfs.tar to target, please wait..."
-
-	export DIBS_TARGET="$DIBS_WORKSPACE/target"
-	mkdir -p "$DIBS_TARGET"
-	pushd "$DIBS_TARGET" > /dev/null
-	tar -xf "$DIBS_WORKSPACE/rootfs.tar"
-	popd > /dev/null
-}
-
-function dibs_tar()
-{
-	require_target_dir
-	unmount_target_subdirs
-
-	echo "Storing target directory as rootfs.tar, please wait..."
-	pushd "$DIBS_TARGET" > /dev/null
-	tar --one-file-system -cf "$DIBS_WORKSPACE/rootfs.tar" .
-	popd > /dev/null
-	rm -rf --one-file-system "$DIBS_TARGET"
-}
-
+dibs_shell_help="shell: dibs shell
+    Extracts the rootfs into target, starts a chroot shell and
+    re-tars the directory when the chroot exits."
 function dibs_shell()
 {
 	require_config
@@ -331,83 +331,50 @@ function dibs_shell()
 	dibs_tar
 }
 
-function dibs_help()
+dibs_tar_help="tar: dibs tar
+    Makes a rootfs.tar from the contents of target."
+function dibs_tar()
 {
-	command=$1
-	case "$1" in
-		board)
-			echo "board: dibs board [name]"
-			echo "    Initializes a workspace with a given board name."
-			;;
-		config)
-			echo "config: dibs config [board]"
-			echo "    Pre-build configuration. First runs kconfig-mconfig and then"
-			echo "    generates output files."
-			;;
-		regen)
-			echo "regen: dibs regen"
-			echo "    Rebuilds all configuration dependent files such as multistrap.conf."
-			;;
-		build)
-			echo "build: dibs build"
-			echo "    Runs multistrap and stage2 chroot processes."
-			;;
-		shell)
-			echo "shell: dibs shell"
-			echo "    Extracts the rootfs into target, starts a chroot shell and"
-			echo "    re-tars the directory when the chroot exits."
-			;;
-		tar)
-			echo "tar: dibs tar"
-			echo "    Makes a rootfs.tar from the contents of target."
-			;;
-		untar)
-			echo "untar: dibs untar"
-			echo "    Extracts a rootfs.tar file into target directory."
-			;;
-		*)
-			echo "Usage:"
-			echo " board"
-			echo " build"
-			echo " config [board]"
-			echo " regen"
-			echo " shell"
-			echo " tar"
-			echo " untar"
-			;;
-	esac
+	require_target_dir
+	unmount_target_subdirs
+
+	echo "Storing target directory as rootfs.tar, please wait..."
+	pushd "$DIBS_TARGET" > /dev/null
+	tar --one-file-system -cf "$DIBS_WORKSPACE/rootfs.tar" .
+	popd > /dev/null
+	rm -rf --one-file-system "$DIBS_TARGET"
+}
+
+dibs_untar_help="untar: dibs untar
+    Extracts a rootfs.tar file into target directory."
+function dibs_untar()
+{
+	require_rootfs_tar
+
+	echo "Expanding rootfs.tar to target, please wait..."
+
+	export DIBS_TARGET="$DIBS_WORKSPACE/target"
+	mkdir -p "$DIBS_TARGET"
+	pushd "$DIBS_TARGET" > /dev/null
+	tar -xf "$DIBS_WORKSPACE/rootfs.tar"
+	popd > /dev/null
+}
+
+function dibs_usage()
+{
+	echo "Usage:
+ board
+ build
+ config [board]
+ help
+ regen
+ shell
+ tar
+ untar
+ usage"
 }
 
 command=$1
 shift
-
-case "$command" in
-	board)
-		dibs_board "$@"
-		;;
-	config)
-		dibs_config "$@"
-		;;
-	regen)
-		dibs_regen "$@"
-		;;
-	build)
-		dibs_build "$@"
-		;;
-	shell)
-		dibs_shell "$@"
-		;;
-	untar)
-		dibs_untar "$@"
-		;;
-	tar)
-		dibs_tar "$@"
-		;;
-	help|"")
-		dibs_help "$@"
-		;;
-	*)
-		echo "Unknown command, see \"dibs help\"."
-		;;
-esac
+declare -F dibs_$command > /dev/null && dibs_$command "$@" || echo "Unknown command, see \"dibs help\"."
 
