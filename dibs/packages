@@ -35,7 +35,7 @@ function packages_config()
 	for package in "${all_packages[@]}" ; do
 		local var="CONFIG_PACKAGE_$(echo "${package}" | tr '[a-z-]' '[A-Z_]')"
 		if [[ "y" == "${!var}" ]] ; then
-			CONFIG_PACKAGES="$config_packages $package"
+			CONFIG_PACKAGES="$CONFIG_PACKAGES $package"
 		fi
 	done
 }

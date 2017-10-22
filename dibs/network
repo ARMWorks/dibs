@@ -1,4 +1,4 @@
-function network_postinstall()
+function network_config()
 {
 	if [[ "y" == "$CONFIG_NETWORK_ETH0" ]] ; then
 		CONFIG_NETWORK_ETH0_IP_TYPE=
@@ -30,6 +30,59 @@ function network_postinstall()
 			CONFIG_NETWORK_WLAN0_IP_TYPE="manual"
 		elif [[ "y" == "$CONFIG_NETWORK_WLAN0_IP_TYPE_STATIC" ]] ; then
 			CONFIG_NETWORK_WLAN0_IP_TYPE="static"
+		fi
+	fi
+}
+
+function network_postinstall()
+{
+	if [[ "y" == "$CONFIG_NETWORK_ETH0" ]] ; then
+		if [[ -d "$DIBS_TARGET/etc/network/interfaces.d" ]] ; then
+			f="$DIBS_TARGET/etc/network/interfaces.d/eth0"
+		else
+			f="$DIBS_TARGET/etc/network/interfaces"
+			echo >> "$f"
+		fi
+
+		echo "allow-hotplug eth0" >> "$f"
+		echo "iface eth0 inet $CONFIG_NETWORK_ETH0_IP_TYPE" >> "$f"
+		if [[ "static" == "$CONFIG_NETWORK_ETH0_IP_TYPE" ]] ; then
+			echo -e "\taddress $CONFIG_NETWORK_ETH0_IP_ADDR" >> "$f"
+			echo -e "\tnetmask $CONFIG_NETWORK_ETH0_IP_NETMASK" >> "$f"
+			if [[ -n "$CONFIG_NETWORK_ETH0_IP_GATEWAY" ]] ; then
+				echo -e "\tgateway $CONFIG_NETWORK_ETH0_IP_GATEWAY" >> "$f"
+			fi
+		fi
+	fi
+
+	if [[ "y" == "$CONFIG_NETWORK_WLAN0" ]] ; then
+		if [[ -d "$DIBS_TARGET/etc/network/interfaces.d" ]] ; then
+			f="$DIBS_TARGET/etc/network/interfaces.d/wlan0"
+		else
+			f="$DIBS_TARGET/etc/network/interfaces"
+			echo >> "$f"
+		fi
+
+		echo "allow-hotplug wlan0" >> "$f"
+		echo "iface wlan0 inet $CONFIG_NETWORK_WLAN0_IP_TYPE" >> "$f"
+		if [[ "static" == "$CONFIG_NETWORK_WLAN0_IP_TYPE" ]] ; then
+			echo -e "\taddress $CONFIG_NETWORK_WLAN0_IP_ADDR" >> "$f"
+			echo -e "\tnetmask $CONFIG_NETWORK_WLAN0_IP_NETMASK" >> "$f"
+			if [[ -n "$CONFIG_NETWORK_WLAN0_IP_GATEWAY" ]] ; then
+				echo -e "\tgateway $CONFIG_NETWORK_WLAN0_IP_GATEWAY" >> "$f"
+			fi
+		fi
+		if [[ "open" == "$CONFIG_NETWORK_WLAN0_TYPE" ]] || [[ "wep" == "$CONFIG_NETWORK_WLAN0_TYPE" ]]; then
+			echo -e "\twireless-mode managed" >> "$f"
+			echo -e "\twireless-essid $CONFIG_NETWORK_WLAN0_SSID" >> "$f"
+		fi
+		if [[ "wep" == "$CONFIG_NETWORK_WLAN0_TYPE" ]] ; then
+			echo -e "\twireless-key $CONFIG_NETWORK_WLAN0_KEY" >> "$f"
+		fi
+		if [[ "wpa" == "$CONFIG_NETWORK_WLAN0_TYPE" ]] || [[ "wpa2" == "$CONFIG_NETWORK_WLAN0_TYPE" ]] ; then
+			local psk=$(wpa_passphrase "$CONFIG_NETWORK_WLAN0_SSID" "$CONFIG_NETWORK_WLAN0_KEY" | grep -Po "(?<=^\tpsk=).*")
+			echo -e "\twpa-ssid $CONFIG_NETWORK_WLAN0_SSID" >> "$f"
+			echo -e "\twpa-psk $psk" >> "$f"
 		fi
 	fi
 

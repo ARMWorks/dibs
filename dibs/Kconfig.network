@@ -19,11 +19,14 @@ menu "Network"
 	endif
 
 	menuconfig NETWORK_ETH0
+		depends on PACKAGE_NET_TOOLS
+		depends on PACKAGE_IFUPDOWN
 		bool "eth0"
 	if NETWORK_ETH0
 		choice NETWORK_ETH0_IP_TYPE
 			prompt "IP Type"
 			config NETWORK_ETH0_IP_TYPE_DHCP
+				depends on PACKAGE_ISC_DHCP_CLIENT
 				bool "DHCP"
 			config NETWORK_ETH0_IP_TYPE_MANUAL
 				bool "Manual"
@@ -41,6 +44,9 @@ menu "Network"
 	endif
 
 	menuconfig NETWORK_WLAN0
+		depends on PACKAGE_NET_TOOLS
+		depends on PACKAGE_IFUPDOWN
+		depends on PACKAGE_WIRELESS_TOOLS
 		bool "wlan0"
 	if NETWORK_WLAN0
 		config NETWORK_WLAN0_SSID
@@ -52,8 +58,10 @@ menu "Network"
 			config NETWORK_WLAN0_TYPE_WEP
 				bool "WEP"
 			config NETWORK_WLAN0_TYPE_WPA
+				depends on PACKAGE_WPASUPPLICANT
 				bool "WPA"
 			config NETWORK_WLAN0_TYPE_WPA2
+				depends on PACKAGE_WPASUPPLICANT
 				bool "WPA2"
 		endchoice
 		config NETWORK_WLAN0_KEY
@@ -62,6 +70,7 @@ menu "Network"
 		choice NETWORK_WLAN0_IP_TYPE
 			prompt "IP Type"
 			config NETWORK_WLAN0_IP_TYPE_DHCP
+				depends on PACKAGE_ISC_DHCP_CLIENT
 				bool "DHCP"
 			config NETWORK_WLAN0_IP_TYPE_MANUAL
 				bool "Manual"

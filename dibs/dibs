@@ -92,6 +92,7 @@ function require_config()
 	fi
 
 	packages_config
+	network_config
 	declare -fF board_config > /dev/null && board_config
 }
 

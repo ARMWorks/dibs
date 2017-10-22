@@ -7,8 +7,8 @@ function system_postinstall()
 	fi
 
 	if [[ "y" == "$CONFIG_SYSTEM_USER_ADD" ]] ; then
-		useradd -R "$DIBS_TARGET" -G $(echo "$CONFIG_SYSTEM_USER_GROUPS" | tr " " ",") "$SYSTEM_USER_USERNAME"
-		chpasswd -R "$DIBS_TARGET" <<< "$SYSTEM_USER_USERNAME:$CONFIG_SYSTEM_USER_PASSWORD"
+		useradd -R "$DIBS_TARGET" -G $(echo "$CONFIG_SYSTEM_USER_GROUPS" | tr " " ",") "$CONFIG_SYSTEM_USER_USERNAME"
+		chpasswd -R "$DIBS_TARGET" <<< "$CONFIG_SYSTEM_USER_USERNAME:$CONFIG_SYSTEM_USER_PASSWORD"
 	fi
 
 	if [[ "y" == "$CONFIG_SYSTEM_REMOVE_DOCUMENTATION" ]] ; then
