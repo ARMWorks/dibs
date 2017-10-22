@@ -1,38 +1,40 @@
-if [[ "y" == "$CONFIG_NETWORK_ETH0" ]] ; then
-	CONFIG_NETWORK_ETH0_IP_TYPE=
-	if [[ "y" == "$CONFIG_NETWORK_ETH0_IP_TYPE_DHCP" ]] ; then
-		CONFIG_NETWORK_ETH0_IP_TYPE="dhcp"
-	elif [[ "y" == "$CONFIG_NETWORK_ETH0_IP_TYPE_MANUAL" ]] ; then
-		CONFIG_NETWORK_ETH0_IP_TYPE="manual"
-	elif [[ "y" == "$CONFIG_NETWORK_ETH0_IP_TYPE_STATIC" ]] ; then
-		CONFIG_NETWORK_ETH0_IP_TYPE="static"
-	fi
-fi
-
-if [[ "y" == "$CONFIG_NETWORK_WLAN0" ]] ; then
-	CONFIG_NETWORK_WLAN0_TYPE=
-	if [[ "y" == "$CONFIG_NETWORK_WLAN0_TYPE_OPEN" ]] ; then
-		CONFIG_NETWORK_WLAN0_TYPE="open"
-	elif [[ "y" == "$CONFIG_NETWORK_WLAN0_TYPE_WEP" ]] ; then
-		CONFIG_NETWORK_WLAN0_TYPE="wep"
-	elif [[ "y" == "$CONFIG_NETWORK_WLAN0_TYPE_WPA" ]] ; then
-		CONFIG_NETWORK_WLAN0_TYPE="wpa"
-	elif [[ "y" == "$CONFIG_NETWORK_WLAN0_TYPE_WPA2" ]] ; then
-		CONFIG_NETWORK_WLAN0_TYPE="wpa2"
+function dibs_network_postinstall()
+{
+	if [[ "y" == "$CONFIG_NETWORK_ETH0" ]] ; then
+		CONFIG_NETWORK_ETH0_IP_TYPE=
+		if [[ "y" == "$CONFIG_NETWORK_ETH0_IP_TYPE_DHCP" ]] ; then
+			CONFIG_NETWORK_ETH0_IP_TYPE="dhcp"
+		elif [[ "y" == "$CONFIG_NETWORK_ETH0_IP_TYPE_MANUAL" ]] ; then
+			CONFIG_NETWORK_ETH0_IP_TYPE="manual"
+		elif [[ "y" == "$CONFIG_NETWORK_ETH0_IP_TYPE_STATIC" ]] ; then
+			CONFIG_NETWORK_ETH0_IP_TYPE="static"
+		fi
 	fi
 
-	CONFIG_NETWORK_WLAN0_IP_TYPE=
-	if [[ "y" == "$CONFIG_NETWORK_WLAN0_IP_TYPE_DHCP" ]] ; then
-		CONFIG_NETWORK_WLAN0_IP_TYPE="dhcp"
-	elif [[ "y" == "$CONFIG_NETWORK_WLAN0_IP_TYPE_MANUAL" ]] ; then
-		CONFIG_NETWORK_WLAN0_IP_TYPE="manual"
-	elif [[ "y" == "$CONFIG_NETWORK_WLAN0_IP_TYPE_STATIC" ]] ; then
-		CONFIG_NETWORK_WLAN0_IP_TYPE="static"
-	fi
-fi
+	if [[ "y" == "$CONFIG_NETWORK_WLAN0" ]] ; then
+		CONFIG_NETWORK_WLAN0_TYPE=
+		if [[ "y" == "$CONFIG_NETWORK_WLAN0_TYPE_OPEN" ]] ; then
+			CONFIG_NETWORK_WLAN0_TYPE="open"
+		elif [[ "y" == "$CONFIG_NETWORK_WLAN0_TYPE_WEP" ]] ; then
+			CONFIG_NETWORK_WLAN0_TYPE="wep"
+		elif [[ "y" == "$CONFIG_NETWORK_WLAN0_TYPE_WPA" ]] ; then
+			CONFIG_NETWORK_WLAN0_TYPE="wpa"
+		elif [[ "y" == "$CONFIG_NETWORK_WLAN0_TYPE_WPA2" ]] ; then
+			CONFIG_NETWORK_WLAN0_TYPE="wpa2"
+		fi
 
-echo "$CONFIG_NETWORK_HOSTNAME" > "$DIBS_TARGET/etc/hostname"
-cat > "$DIBS_TARGET/etc/hosts" << EOF
+		CONFIG_NETWORK_WLAN0_IP_TYPE=
+		if [[ "y" == "$CONFIG_NETWORK_WLAN0_IP_TYPE_DHCP" ]] ; then
+			CONFIG_NETWORK_WLAN0_IP_TYPE="dhcp"
+		elif [[ "y" == "$CONFIG_NETWORK_WLAN0_IP_TYPE_MANUAL" ]] ; then
+			CONFIG_NETWORK_WLAN0_IP_TYPE="manual"
+		elif [[ "y" == "$CONFIG_NETWORK_WLAN0_IP_TYPE_STATIC" ]] ; then
+			CONFIG_NETWORK_WLAN0_IP_TYPE="static"
+		fi
+	fi
+
+	echo "$CONFIG_NETWORK_HOSTNAME" > "$DIBS_TARGET/etc/hostname"
+	cat > "$DIBS_TARGET/etc/hosts" << EOF
 127.0.0.1	localhost
 127.0.1.1	$CONFIG_NETWORK_HOSTNAME
 
@@ -42,20 +44,20 @@ ff02::1 ip6-allnodes
 ff02::2 ip6-allrouters
 EOF
 
-if [[ "y" == "$CONFIG_NETWORK_RESOLVER" ]] ; then
-	f="$DIBS_TARGET/etc/resolv.conf"
-	truncate -s 0 "$f"
-	if [[ -n "$CONFIG_NETWORK_RESOLVER_DOMAIN" ]]; then
-		echo "domain $CONFIG_NETWORK_RESOLVER_DOMAIN" >> "$f"
+	if [[ "y" == "$CONFIG_NETWORK_RESOLVER" ]] ; then
+		f="$DIBS_TARGET/etc/resolv.conf"
+		truncate -s 0 "$f"
+		if [[ -n "$CONFIG_NETWORK_RESOLVER_DOMAIN" ]]; then
+			echo "domain $CONFIG_NETWORK_RESOLVER_DOMAIN" >> "$f"
+		fi
+		if [[ -n "$CONFIG_NETWORK_RESOLVER_SEARCH" ]]; then
+			echo "search $CONFIG_NETWORK_RESOLVER_SEARCH" >> "$f"
+		fi
+		if [[ -n "$CONFIG_NETWORK_RESOLOVER_NS1" ]]; then
+			echo "nameserver $CONFIG_NETWORK_RESOLOVER_NS1" >> "$f"
+		fi
+		if [[ -n "$CONFIG_NETWORK_RESOLOVER_NS2" ]]; then
+			echo "nameserver $CONFIG_NETWORK_RESOLOVER_NS2" >> "$f"
+		fi
 	fi
-	if [[ -n "$CONFIG_NETWORK_RESOLVER_SEARCH" ]]; then
-		echo "search $CONFIG_NETWORK_RESOLVER_SEARCH" >> "$f"
-	fi
-	if [[ -n "$CONFIG_NETWORK_RESOLOVER_NS1" ]]; then
-		echo "nameserver $CONFIG_NETWORK_RESOLOVER_NS1" >> "$f"
-	fi
-	if [[ -n "$CONFIG_NETWORK_RESOLOVER_NS2" ]]; then
-		echo "nameserver $CONFIG_NETWORK_RESOLOVER_NS2" >> "$f"
-	fi
-fi
-
+}

@@ -16,6 +16,8 @@ if [[ "$DIBS_ROOT" == "$PWD" ]] ; then
 fi
 
 source "$DIBS_ROOT/dibs/packages"
+source "$DIBS_ROOT/dibs/system"
+source "$DIBS_ROOT/dibs/network"
 
 function dibs_board()
 {
@@ -263,8 +265,8 @@ function dibs_build()
 	cd "$DIBS_TARGET"
 	install_static_qemu
 	chroot "$DIBS_TARGET" /stage2.sh
-	source "$DIBS_WORKSPACE/dibs/system"
-	source "$DIBS_WORKSPACE/dibs/network"
+	dibs_network_postinstall
+	dibs_system_postinstall
 	uninstall_static_qemu
 	dibs_tar
 	popd > /dev/null

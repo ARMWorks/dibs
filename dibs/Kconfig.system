@@ -1,17 +1,33 @@
 menu "System"
-	config SYSTEM_REMOVE_DOCUMENTATION
-		bool "Remove documentation"
-	config SYSTEM_REMOVE_LINTIAN
-		bool "Remove lintian files"
+	menu "Accounts"
+		config SYSTEM_ROOT_PASSWORD
+			string "Root Password"
+		menuconfig SYSTEM_USER_ADD
+			bool "Add User"
+		if SYSTEM_USER_ADD
+			config SYSTEM_USER_USERNAME
+				string "Username"
+			config SYSTEM_USER_PASSWORD
+				string "Password"
+			config SYSTEM_USER_GROUPS
+				string "Groups"
+		endif
+	endmenu
+	menu "Remove files"
+		config SYSTEM_REMOVE_DOCUMENTATION
+			bool "Remove documentation"
+		config SYSTEM_REMOVE_LINTIAN
+			bool "Remove lintian files"
+		config SYSTEM_REMOVE_LOCALES
+			bool "Remove locales"
+		config SYSTEM_RETAIN_LOCALES
+			string "Retain these locales"
+			depends on SYSTEM_REMOVE_LOCALES
+			default "en_US"
+	endmenu
 	config SYSTEM_LOCALE
 		string "Locale"
 		depends on PACKAGE_LOCALES
-		depends on !SYSTEM_REMOVE_LOCALES || SYSTEM_RETAIN_LOCALES != ""
+		depends on !(SYSTEM_REMOVE_LOCALES && SYSTEM_RETAIN_LOCALES = "")
 		default "en_US.UTF-8"
-	config SYSTEM_REMOVE_LOCALES
-		bool "Remove locales"
-	config SYSTEM_RETAIN_LOCALES
-		string "Retain these locales"
-		depends on SYSTEM_REMOVE_LOCALES
-		default "en_US"
 endmenu
