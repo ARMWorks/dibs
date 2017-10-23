@@ -41,7 +41,7 @@ function system_postinstall()
 	fi
 
 	if [[ "y" == "$CONFIG_SYSTEM_REMOVE_LOGS" ]] ; then
-		rm -rf "${DIBS_TARGET}/var/log/"*
+		rm -rf "$DIBS_TARGET/var/log/"*
 	fi
 
 	if [[ -n "$CONFIG_SYSTEM_LOCALE" ]] ; then
