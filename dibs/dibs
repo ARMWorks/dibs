@@ -2,17 +2,17 @@
 
 if [[ -z "$DIBS_ROOT" ]] ; then
 	echo "DIBS_ROOT is not set."
-	exit
+	exit 1
 fi
 
 if [[ $(id -u) -ne 0 ]] ; then
 	echo "This script should be ran as root."
-	exit
+	exit 1
 fi
 
 if [[ "$DIBS_ROOT" == "$PWD" ]] ; then
 	echo "Cannot work in DIBS root. Please create a directory to use as a DIBS_WORKSPACE."
-	exit
+	exit 1
 fi
 
 source "$DIBS_ROOT/dibs/packages"
@@ -26,7 +26,7 @@ function require_workspace()
 {
 	if [[ -z "$DIBS_WORKSPACE" ]] || [[ ! -f "$DIBS_WORKSPACE/.dibs_workspace" ]]; then
 		echo "DIBS workspace not found. Try creating a directory and run \"dibs board\"."
-		exit
+		exit 1
 	fi
 
 	export KCONFIG_CONFIG="$DIBS_WORKSPACE/config/config"
@@ -38,7 +38,7 @@ function require_config()
 
 	if [[ ! -f "$KCONFIG_CONFIG" ]] ; then
 		echo "Config not found. Try \"dibs config\"."
-		exit
+		exit 1
 	fi
 
 	source "$KCONFIG_CONFIG"
@@ -102,7 +102,7 @@ function require_rootfs_tar()
 
 	if [[ ! -f "$DIBS_WORKSPACE/rootfs.tar" ]] ; then
 		echo "rootfs.tar not found!  Have you ran \"dibs build\" yet?"
-		exit
+		exit 1
 	fi
 }
 
@@ -114,16 +114,16 @@ function require_target_dir()
 
 	if [[ ! -d "$DIBS_TARGET" ]] ; then
 		echo "No target filesystem found. Did you run \"dibs untar\"?"
-		exit
+		exit 1
 	fi
 }
 
 # assumes require_config has already been ran
 function install_static_qemu()
 {
-	if [[ "$PWD" == "/" ]] ; then
+	if [[ -z "$DIBS_TARGET" ]] || [["$DIBS_TARGET" == "/" ]] ; then
 		echo "install_static_qemu function cowardly refusing to run."
-		exit
+		exit 1
 	fi
 
 	if [[ "$CONFIG_ARCH" == "armel" ]] || [[ "$CONFIG_ARCH" == "armhf" ]] ; then
@@ -136,9 +136,9 @@ function install_static_qemu()
 # assumes require_config has already been ran
 function uninstall_static_qemu()
 {
-	if [[ "$PWD" == "/" ]] ; then
+	if [[ -z "$DIBS_TARGET" ]] || [["$DIBS_TARGET" == "/" ]] ; then
 		echo "uninstall_static_qemu function cowardly refusing to run."
-		exit
+		exit 1
 	fi
 
 	if [[ "$CONFIG_ARCH" == "armel" ]] || [[ "$CONFIG_ARCH" == "armhf" ]] ; then
@@ -169,7 +169,7 @@ function dibs_build()
 	pushd "$DIBS_WORKSPACE" > /dev/null
 	export DIBS_TARGET="$DIBS_WORKSPACE/target"
 	mkdir -p "$DIBS_TARGET"
-	multistrap -f "$DIBS_WORKSPACE/config/multistrap.conf" || exit
+	multistrap -f "$DIBS_WORKSPACE/config/multistrap.conf" || exit 1
 	cd "$DIBS_TARGET"
 	install_static_qemu
 	chroot "$DIBS_TARGET" /stage2.sh
@@ -365,18 +365,23 @@ function dibs_untar()
 function dibs_usage()
 {
 	echo "Usage:
- board
- build
- config [board]
- help
- regen
- shell
- tar
- untar
- usage"
+    board
+    build
+    config [board]
+    help
+    regen
+    shell
+    tar
+    untar
+    usage"
+	exit 1
 }
 
 command=$1
 shift
-declare -fF dibs_$command > /dev/null && dibs_$command "$@" || echo "Unknown command, see \"dibs help\"."
+if [[ -z "$command" ]] ; then
+	dibs_usage "$@"
+	exit 1
+fi
 
+declare -fF dibs_$command > /dev/null && dibs_$command "$@" || echo "Unknown command, see \"dibs help\"."
