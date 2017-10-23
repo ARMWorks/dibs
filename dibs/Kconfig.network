@@ -33,7 +33,7 @@ menu "Network"
 			config NETWORK_ETH0_IP_TYPE_STATIC
 				bool "Static"
 		endchoice
-		if NETWORK_ETH0_IP_STATIC
+		if NETWORK_ETH0_IP_TYPE_STATIC
 			config NETWORK_ETH0_IP_ADDR
 				string "IP Address"
 			config NETWORK_ETH0_IP_NETMASK
