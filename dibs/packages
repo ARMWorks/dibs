@@ -14,6 +14,7 @@ all_packages=(
 	less
 	libbluetooth3
 	locales
+	nano
 	net-tools
 	openssh-client
 	openssh-server
@@ -24,12 +25,15 @@ all_packages=(
 )
 
 if [[ -n "$DIBS_WORKSPACE" ]] ; then
+	if [[ -f "$DIBS_WORKSPACE/board/packages" ]] ; then
+		mapfile -O ${#all_packages[@]} all_packages < "$DIBS_WORKSPACE/board/packages"
+	fi
 	if [[ -f "$DIBS_WORKSPACE/config/packages" ]] ; then
 		mapfile -O ${#all_packages[@]} all_packages < "$DIBS_WORKSPACE/config/packages"
 	fi
 fi
 
-IFS=$'\n' all_packages=($(sort <<< "${all_packages[*]}"))
+IFS=$'\n' all_packages=($(sort <<< "${all_packages[*]}" | uniq))
 IFS=' '
 
 function packages_config()
@@ -38,7 +42,7 @@ function packages_config()
 
 	for package in "${all_packages[@]}" ; do
 		local var="CONFIG_PACKAGE_$(echo "${package}" | tr '[a-z-]' '[A-Z_]')"
-		if [[ "y" == "${!var}" ]] ; then
+		if [[ "y" = "${!var}" ]] ; then
 			CONFIG_PACKAGES="$CONFIG_PACKAGES $package"
 		fi
 	done
@@ -47,18 +51,18 @@ function packages_config()
 function packages_generate()
 {
 	local f="$DIBS_WORKSPACE/config/Kconfig.packages"
-	echo "# WARNING: This is an automatically-generated file, do not edit!" > $f
-	echo "# If you need to add a package to the list please create a \"packages\"" >> $f
-	echo "# file in this directory, with one package per line." >> $f
-	echo >> $f
-	echo "menu \"Packages\"" >> $f
-	echo "	config PACKAGE_USERDEFINED" >> $f
-	echo "		string \"User defined, space separated list\"" >> $f
+	echo "# WARNING: This is an automatically-generated file, do not edit!" > "$f"
+	echo "# If you need to add a package to the list please create a \"packages\"" >> "$f"
+	echo "# file in this directory, with one package per line." >> "$f"
+	echo >> "$f"
+	echo "menu \"Packages\"" >> "$f"
+	echo -e "\tconfig PACKAGE_USERDEFINED" >> "$f"
+	echo -e "\t\tstring \"User defined, space separated list\"" >> "$f"
 	for package in "${all_packages[@]}" ; do
 		local package_var=PACKAGE_$(echo ${package} | tr '[a-z-]' '[A-Z_]')
-		echo "	config $package_var" >> $f
-		echo "		bool \"$package\"" >> $f
+		echo -e "\tconfig $package_var" >> "$f"
+		echo -e "\t\tbool \"$package\"" >> "$f"
 	done
-	echo "endmenu" >> $f
+	echo "endmenu" >> "$f"
 }
 

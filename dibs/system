@@ -3,33 +3,33 @@ function system_postinstall()
 	if [[ -z "$CONFIG_SYSTEM_ROOT_PASSWORD" ]] ; then
 		sed -i 's/\(root:\)[^:]*\(:\)/\1\2/' "$DIBS_TARGET/etc/shadow"
 	else
-		chpasswd -R "$DIBS_TARGET" <<< "root:$CONFIG_SYSTEM_ROOT_PASSWORD"
+		chroot "$DIBS_TARGET" chpasswd <<< "root:$CONFIG_SYSTEM_ROOT_PASSWORD"
 	fi
 
-	if [[ "y" == "$CONFIG_SYSTEM_USER_ADD" ]] ; then
-		useradd -R "$DIBS_TARGET" -G $(echo "$CONFIG_SYSTEM_USER_GROUPS" | tr " " ",") "$CONFIG_SYSTEM_USER_USERNAME"
-		chpasswd -R "$DIBS_TARGET" <<< "$CONFIG_SYSTEM_USER_USERNAME:$CONFIG_SYSTEM_USER_PASSWORD"
+	if [[ "y" = "$CONFIG_SYSTEM_USER_ADD" ]] ; then
+		chroot "$DIBS_TARGET" useradd -G $(echo "$CONFIG_SYSTEM_USER_GROUPS" | tr " " ",") "$CONFIG_SYSTEM_USER_USERNAME"
+		chroot "$DIBS_TARGET" chpasswd <<< "$CONFIG_SYSTEM_USER_USERNAME:$CONFIG_SYSTEM_USER_PASSWORD"
 	fi
 
-	if [[ "y" == "$CONFIG_SYSTEM_REMOVE_DOCUMENTATION" ]] ; then
+	if [[ "y" = "$CONFIG_SYSTEM_REMOVE_DOCUMENTATION" ]] ; then
 		find "$DIBS_TARGET/usr/share/doc" ! -name copyright -type f -delete
 		find "$DIBS_TARGET/usr/share/doc" -type d -delete > /dev/null 2>&1
 		rm -rf "$DIBS_TARGET/usr/share/man/"*
 		rm -rf "$DIBS_TARGET/usr/share/info/"*
 	fi
 
-	if [[ "y" == "$CONFIG_SYSTEM_REMOVE_LINTIAN" ]] ; then
+	if [[ "y" = "$CONFIG_SYSTEM_REMOVE_LINTIAN" ]] ; then
 		rm -rf "$DIBS_TARGET/usr/share/lintian/"*
 	fi
 
-	if [[ "y" == "$CONFIG_SYSTEM_REMOVE_LOCALES" ]] ; then
+	if [[ "y" = "$CONFIG_SYSTEM_REMOVE_LOCALES" ]] ; then
 		pushd "$DIBS_TARGET/usr/share/locale/" > /dev/null
 		locales=(*)
 		popd > /dev/null
 
 		for retain in locale.alias "$CONFIG_SYSTEM_RETAIN_LOCALES" ; do
 			for i in "${!locales[@]}" ; do
-				if [[ "${locales[i]}" == "$retain" ]] ; then
+				if [[ "${locales[i]}" = "$retain" ]] ; then
 					unset locales[i]
 				fi
 			done
@@ -40,7 +40,7 @@ function system_postinstall()
 		done
 	fi
 
-	if [[ "y" == "$CONFIG_SYSTEM_REMOVE_LOGS" ]] ; then
+	if [[ "y" = "$CONFIG_SYSTEM_REMOVE_LOGS" ]] ; then
 		rm -rf "$DIBS_TARGET/var/log/"*
 	fi
 
