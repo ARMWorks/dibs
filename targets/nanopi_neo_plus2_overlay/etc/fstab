@@ -1,0 +1,2 @@
+devpts		    /dev/pts	devpts	defaults,gid=5,mode=620	0	0
+/dev/mmcblk0p1	/boot		vfat	defaults		        0	0

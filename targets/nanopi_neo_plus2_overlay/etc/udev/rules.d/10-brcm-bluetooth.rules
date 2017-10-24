@@ -1,0 +1,2 @@
+SUBSYSTEM=="rfkill", ACTION=="change", ATTR{name}=="sunxi-bt", ATTR{state}=="1", RUN+="/bin/systemctl --no-block start brcm-bluetooth.service"
+SUBSYSTEM=="rfkill", ACTION=="change", ATTR{name}=="sunxi-bt", ATTR{state}=="0", RUN+="/bin/systemctl --no-block stop brcm-bluetooth.service"

@@ -1,0 +1,6 @@
+[Unit]
+Description=Broadcom firmware and hci service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/brcm-bluetooth.sh
