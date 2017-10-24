@@ -1,14 +1,23 @@
+function system_config()
+{
+	CONFIG_SYSTEM_USER_GROUPS="$(echo "$CONFIG_SYSTEM_USER_GROUPS" | tr " " ",")"
+}
+
 function system_postinstall()
 {
+	mkdir -p "$DIBS_TARGET/home"
+
 	if [[ -z "$CONFIG_SYSTEM_ROOT_PASSWORD" ]] ; then
-		sed -i 's/\(root:\)[^:]*\(:\)/\1\2/' "$DIBS_TARGET/etc/shadow"
+		sed -i "s/\(root:\)[^:]*\(:\)/\1\2/" "$DIBS_TARGET/etc/shadow"
 	else
 		chroot "$DIBS_TARGET" chpasswd <<< "root:$CONFIG_SYSTEM_ROOT_PASSWORD"
 	fi
 
-	if [[ "y" = "$CONFIG_SYSTEM_USER_ADD" ]] ; then
-		chroot "$DIBS_TARGET" useradd -G $(echo "$CONFIG_SYSTEM_USER_GROUPS" | tr " " ",") "$CONFIG_SYSTEM_USER_USERNAME"
-		chroot "$DIBS_TARGET" chpasswd <<< "$CONFIG_SYSTEM_USER_USERNAME:$CONFIG_SYSTEM_USER_PASSWORD"
+	if [[ "y" = "$CONFIG_SYSTEM_USER_ADD" ]] && [[ -n "$CONFIG_SYSTEM_USER_USERNAME" ]] ; then
+		chroot "$DIBS_TARGET" useradd ${CONFIG_SYSTEM_USER_GROUPS:+-G "$CONFIG_SYSTEM_USER_GROUPS"} -m -s "$CONFIG_SYSTEM_USER_SHELL" "$CONFIG_SYSTEM_USER_USERNAME"
+		if [[ -n "$CONFIG_SYSTEM_USER_PASSWORD" ]] ; then
+			chroot "$DIBS_TARGET" chpasswd <<< "$CONFIG_SYSTEM_USER_USERNAME:$CONFIG_SYSTEM_USER_PASSWORD"
+		fi
 	fi
 
 	if [[ "y" = "$CONFIG_SYSTEM_REMOVE_DOCUMENTATION" ]] ; then

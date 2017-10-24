@@ -9,6 +9,9 @@ menu "System"
 				string "Username"
 			config SYSTEM_USER_PASSWORD
 				string "Password"
+			config SYSTEM_USER_SHELL
+				string "Shell"
+				default "/bin/bash"
 			config SYSTEM_USER_GROUPS
 				string "Groups"
 		endif
