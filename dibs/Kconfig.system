@@ -35,4 +35,7 @@ menu "System"
 		depends on PACKAGE_LOCALES
 		depends on !(SYSTEM_REMOVE_LOCALES && SYSTEM_RETAIN_LOCALES = "")
 		default "en_US.UTF-8"
+	config SYSTEM_TIMEZONE
+		string "Timezone"
+		default "America/Chicago"
 endmenu

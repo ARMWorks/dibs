@@ -64,4 +64,9 @@ function system_postinstall()
 		    chroot "$DIBS_TARGET" /usr/sbin/update-locale LANG=$CONFIG_SYSTEM_LOCALE
 		fi
 	fi
+
+	if [[ -f "$DIBS_TARGET/usr/share/zoneinfo/$CONFIG_SYSTEM_TIMEZONE" ]] ; then
+		echo "$CONFIG_SYSTEM_TIMEZONE" > "$DIBS_TARGET/etc/timezone"
+		ln -sf "/usr/share/zoneinfo/$CONFIG_SYSTEM_TIMEZONE" "$DIBS_TARGET/etc/localtime"
+	fi
 }
