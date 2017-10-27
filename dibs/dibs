@@ -15,6 +15,7 @@ if [[ "$DIBS_ROOT" = "$PWD" ]] ; then
 	exit 1
 fi
 
+source "$DIBS_ROOT/dibs/platform"
 source "$DIBS_ROOT/dibs/packages"
 source "$DIBS_ROOT/dibs/system"
 source "$DIBS_ROOT/dibs/network"
@@ -43,54 +44,7 @@ function require_config()
 
 	source "$KCONFIG_CONFIG"
 
-	CONFIG_ARCH=
-	if [[ "y" = "$CONFIG_ARCH_AMD64" ]] ; then
-		CONFIG_ARCH="amd64"
-	elif [[ "y" = "$CONFIG_ARCH_ARM64" ]] ; then
-		CONFIG_ARCH="arm64"
-	elif [[ "y" = "$CONFIG_ARCH_ARMEL" ]] ; then
-		CONFIG_ARCH="armel"
-	elif [[ "y" = "$CONFIG_ARCH_ARMHF" ]] ; then
-		CONFIG_ARCH="armhf"
-	elif [[ "y" = "$CONFIG_ARCH_I386" ]] ; then
-		CONFIG_ARCH="i386"
-	fi
-
-	CONFIG_DISTRO=
-	CONFIG_RELEASE=
-	if [[ "y" = "$CONFIG_DISTRO_DEBIAN" ]] ; then
-		CONFIG_DISTRO="debian"
-		if [[ "y" = "$CONFIG_RELEASE_DEBIAN_WHEEZY" ]]; then
-			CONFIG_RELEASE="wheezy"
-		elif [[ "y" = "$CONFIG_RELEASE_DEBIAN_JESSIE" ]]; then
-			CONFIG_RELEASE="jessie"
-		elif [[ "y" = "$CONFIG_RELEASE_DEBIAN_STRETCH" ]]; then
-			CONFIG_RELEASE="stretch"
-		elif [[ "y" = "$CONFIG_RELEASE_DEBIAN_TESTING" ]]; then
-			CONFIG_RELEASE="testing"
-		fi
-	elif [[ "y" = "$CONFIG_DISTRO_UBUNTU" ]] ; then
-		CONFIG_DISTRO="ubuntu"
-		if [[ "y" = "$CONFIG_RELEASE_UBUNTU_TRUSTY" ]]; then
-			CONFIG_RELEASE="trusty"
-		elif [[ "y" = "$CONFIG_RELEASE_UBUNTU_XENIAL" ]]; then
-			CONFIG_RELEASE="xenial"
-		elif [[ "y" = "$CONFIG_RELEASE_UBUNTU_ZESTY" ]]; then
-			CONFIG_RELEASE="zesty"
-		elif [[ "y" = "$CONFIG_RELEASE_UBUNTU_ARTFUL" ]]; then
-			CONFIG_RELEASE="artful"
-		fi
-	fi
-
-	CONFIG_PROCESS_MANAGER=
-	if [[ "y" = "$CONFIG_PROCESS_MANAGER_SYSTEMD" ]] ; then
-		CONFIG_PROCESS_MANAGER="systemd"
-	elif [[ "y" = "$CONFIG_PROCESS_MANAGER_SYSVINIT" ]] ; then
-		CONFIG_PROCESS_MANAGER="sysvinit"
-	elif [[ "y" = "$CONFIG_PROCESS_MANAGER_UPSTART" ]] ; then
-		CONFIG_PROCESS_MANAGER="upstart"
-	fi
-
+	platform_config
 	packages_config
 	system_config
 	network_config
@@ -170,7 +124,7 @@ function dibs_build()
 	pushd "$DIBS_WORKSPACE" > /dev/null
 	export DIBS_TARGET="$DIBS_WORKSPACE/target"
 	mkdir -p "$DIBS_TARGET"
-	multistrap -f "$DIBS_WORKSPACE/config/multistrap.conf" || exit 1
+	multistrap -f "$DIBS_WORKSPACE/config/multistrap.conf" || rm -r "$DIBS_TARGET" && exit 1
 	cd "$DIBS_TARGET"
 	install_static_qemu
 	chroot "$DIBS_TARGET" /stage2.sh
@@ -197,6 +151,14 @@ function dibs_board()
 
 	echo "board=$board" > .dibs_workspace
 
+	f="$DIBS_WORKSPACE/Makefile"
+	echo ".PHONY: all help
+all: $DIBS_WORKSPACE/rootfs.tar
+$DIBS_WORKSPACE/rootfs.tar: $DIBS_WORKSPACE/config/config
+	@dibs build
+help:
+	@echo \"This is a convenience Makefile. Please see \\\"dibs help\\\" for more info.\"" > "$f"
+
 	mkdir -p "$DIBS_WORKSPACE/board" "$DIBS_WORKSPACE/config"
 	shopt -s dotglob
 	cp -r "$DIBS_ROOT/boards/$board/"* "$DIBS_WORKSPACE/board"
@@ -206,7 +168,7 @@ function dibs_board()
 		cp "$DIBS_WORKSPACE/board/config" "$DIBS_WORKSPACE/config/config"
 	fi
 
-	ln -sf "$DIBS_ROOT/dibs" $DIBS_WORKSPACE
+	ln -sf "$DIBS_ROOT/dibs" "$DIBS_WORKSPACE"
 }
 
 dibs_config_help="config: dibs config
@@ -247,8 +209,8 @@ function dibs_regen()
 	echo "export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true" >> "$f"
 	echo "export LC_ALL=C LANGUAGE=C LANG=C" >> "$f"
 	echo "/var/lib/dpkg/info/dash.preinst install" >> "$f"
-	echo "dpkg --configure -a" >> "$f"
 	echo "mount proc -t proc /proc" >> "$f"
+	echo "rm -f /var/run/init.upgraded" >> "$f"
 	echo "dpkg --configure -a" >> "$f"
 	echo "umount /proc" >> "$f"
 	echo "rm /stage2.sh" >> "$f"
@@ -259,13 +221,11 @@ function dibs_regen()
 		extra_packages="systemd systemd-sysv udev"
 	elif [[ "$CONFIG_PROCESS_MANAGER" = "sysvinit" ]] ; then
 		extra_packages="sysvinit-core udev"
-	elif [[ "$CONFIG_PROCESS_MANAGER" = "upstart" ]] ; then
-		extra_packages="upstart upstart-udev-bridge udev"
 	fi
 
 	local f="$DIBS_WORKSPACE/config/multistrap.conf"
 	echo "[General]" > "$f"
-	echo "noauth=true" >> "$f" # FIXME ?
+	echo "noauth=true" >> "$f"
 	echo "unpack=true" >> "$f"
 	echo "debootstrap=${CONFIG_DISTRO^} Security" >> "$f"
 	echo "aptsources=${CONFIG_DISTRO^} Security" >> "$f"

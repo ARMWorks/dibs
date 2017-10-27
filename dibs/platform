@@ -1,0 +1,48 @@
+function platform_config()
+{
+	CONFIG_ARCH=
+	if [[ "y" = "$CONFIG_ARCH_AMD64" ]] ; then
+		CONFIG_ARCH="amd64"
+	elif [[ "y" = "$CONFIG_ARCH_ARM64" ]] ; then
+		CONFIG_ARCH="arm64"
+	elif [[ "y" = "$CONFIG_ARCH_ARMEL" ]] ; then
+		CONFIG_ARCH="armel"
+	elif [[ "y" = "$CONFIG_ARCH_ARMHF" ]] ; then
+		CONFIG_ARCH="armhf"
+	elif [[ "y" = "$CONFIG_ARCH_I386" ]] ; then
+		CONFIG_ARCH="i386"
+	fi
+
+	CONFIG_DISTRO=
+	CONFIG_RELEASE=
+	if [[ "y" = "$CONFIG_DISTRO_DEBIAN" ]] ; then
+		CONFIG_DISTRO="debian"
+		if [[ "y" = "$CONFIG_RELEASE_DEBIAN_WHEEZY" ]]; then
+			CONFIG_RELEASE="wheezy"
+		elif [[ "y" = "$CONFIG_RELEASE_DEBIAN_JESSIE" ]]; then
+			CONFIG_RELEASE="jessie"
+		elif [[ "y" = "$CONFIG_RELEASE_DEBIAN_STRETCH" ]]; then
+			CONFIG_RELEASE="stretch"
+		elif [[ "y" = "$CONFIG_RELEASE_DEBIAN_TESTING" ]]; then
+			CONFIG_RELEASE="testing"
+		fi
+	elif [[ "y" = "$CONFIG_DISTRO_UBUNTU" ]] ; then
+		CONFIG_DISTRO="ubuntu"
+		if [[ "y" = "$CONFIG_RELEASE_UBUNTU_XENIAL" ]]; then
+			CONFIG_RELEASE="xenial"
+		elif [[ "y" = "$CONFIG_RELEASE_UBUNTU_ZESTY" ]]; then
+			CONFIG_RELEASE="zesty"
+		elif [[ "y" = "$CONFIG_RELEASE_UBUNTU_ARTFUL" ]]; then
+			CONFIG_RELEASE="artful"
+		fi
+	fi
+
+	CONFIG_PROCESS_MANAGER=
+	if [[ "y" = "$CONFIG_PROCESS_MANAGER_SYSTEMD" ]] ; then
+		CONFIG_PROCESS_MANAGER="systemd"
+	elif [[ "y" = "$CONFIG_PROCESS_MANAGER_SYSVINIT" ]] ; then
+		CONFIG_PROCESS_MANAGER="sysvinit"
+	elif [[ "y" = "$CONFIG_PROCESS_MANAGER_UPSTART" ]] ; then
+		CONFIG_PROCESS_MANAGER="upstart"
+	fi
+}

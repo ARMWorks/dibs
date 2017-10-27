@@ -23,7 +23,7 @@ menu "Platform"
 		config DISTRO_DEBIAN
 			bool "Debian"
 		config DISTRO_UBUNTU
-			bool "Ubuntu"
+			bool "Ubuntu" if !ARCH_ARMEL
 	endchoice
 
 	if DISTRO_DEBIAN
@@ -45,8 +45,6 @@ menu "Platform"
 		choice RELEASE_UBUNTU
 			prompt "Release"
 			default RELEASE_UBUNTU_XENIAL
-			config RELEASE_UBUNTU_TRUSTY
-				bool "14.04 - Trusty Tahr"
 			config RELEASE_UBUNTU_XENIAL
 				bool "16.04 - Xenial Xerus"
 			config RELEASE_UBUNTU_ZESTY
@@ -58,20 +56,13 @@ menu "Platform"
 
 	choice
 		prompt "Process Manager"
-		default PROCESS_MANAGER_SYSTEMD if DISTRO_DEBIAN && !RELEASE_DEBIAN_WHEEZY
-		default PROCESS_MANAGER_SYSTEMD if DISTRO_UBUNTU && !RELEASE_UBUNTU_TRUSTY
+		default PROCESS_MANAGER_SYSTEMD if (DISTRO_DEBIAN && !RELEASE_DEBIAN_WHEEZY) || DISTRO_UBUNTU
 		default PROCESS_MANAGER_SYSVINIT if RELEASE_DEBIAN_WHEEZY
-		default PROCESS_MANAGER_UPSTART if RELEASE_UBUNTU_TRUSTY
 		config PROCESS_MANAGER_SYSTEMD
 			bool "systemd"
-			depends on !RELEASE_UBUNTU_TRUSTY
 		config PROCESS_MANAGER_SYSVINIT
-			bool "sysvinit"
-		config PROCESS_MANAGER_UPSTART
-			bool "upstart"
-			depends on DISTRO_UBUNTU
+			bool "sysvinit" if !DISTRO_UBUNTU
 	endchoice
 
 	source "board/Kconfig"
 endmenu
-
