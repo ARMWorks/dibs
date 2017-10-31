@@ -19,6 +19,7 @@ source "$DIBS_ROOT/dibs/platform"
 source "$DIBS_ROOT/dibs/packages"
 source "$DIBS_ROOT/dibs/system"
 source "$DIBS_ROOT/dibs/network"
+source "$DIBS_ROOT/dibs/image"
 if [[ -f "$DIBS_WORKSPACE/board/config" ]] ; then
 	source "$DIBS_WORKSPACE/board/config"
 fi
@@ -48,6 +49,7 @@ function require_config()
 	packages_config
 	system_config
 	network_config
+	image_config
 	declare -fF board_config > /dev/null && board_config
 }
 
@@ -124,7 +126,7 @@ function dibs_build()
 	pushd "$DIBS_WORKSPACE" > /dev/null
 	export DIBS_TARGET="$DIBS_WORKSPACE/target"
 	mkdir -p "$DIBS_TARGET"
-	multistrap -f "$DIBS_WORKSPACE/config/multistrap.conf" || rm -r "$DIBS_TARGET" && exit 1
+	multistrap -f "$DIBS_WORKSPACE/config/multistrap.conf" || (rm -r "$DIBS_TARGET" && exit 1)
 	cd "$DIBS_TARGET"
 	install_static_qemu
 	chroot "$DIBS_TARGET" /stage2.sh
@@ -196,6 +198,141 @@ function dibs_help()
 	exit 1
 }
 
+dibs_image_help="image: dibs image
+	Builds an image from rootfs.tar."
+function dibs_image()
+{
+	require_config
+	require_rootfs_tar
+
+	# determine partition numbers, offsets and sizes, and the image size
+	local offset=64
+	if [[ "y" = "$bootloader_at_start" ]] ; then
+		offset=$(expr $offset + 8128) # 4 MB
+	fi
+
+	local part=1
+	local boot_part=0
+	if [[ "y" = "$CONFIG_IMAGE_PARTITION_BOOT" ]] ; then
+		boot_part=$part
+		local boot_start=$offset
+		boot_size=$(expr $CONFIG_IMAGE_PARTITION_BOOT_SIZE \* 2048)
+		offset=$(expr $offset + $boot_size)
+		part=$(expr $part + 1)
+	fi
+
+	local swap_part=0
+	if [[ "y" = "$CONFIG_IMAGE_PARTITION_SWAP_EMBED" ]] ; then
+		swap_part=$part
+		local swap_start=$offset
+		swap_size=$(expr $CONFIG_IMAGE_PARTITION_SWAP_SIZE \* 2048)
+		offset=$(expr $offset + $swap_size)
+		part=$(expr $part + 1)
+	fi
+
+	local root_part=$part
+	local root_start=$offset
+	local tarball_size=$(du -0 -b "$DIBS_WORKSPACE/rootfs.tar" | cut -f1)
+	local root_size=$(expr \( $tarball_size \* 12 / 10 + 511 \) / 512)
+	offset=$(expr $offset + $root_size)
+
+	local image_size=$offset
+
+	# create sparse image
+	truncate -s 0 $DIBS_WORKSPACE/image.bin
+	dd of="$DIBS_WORKSPACE/image.bin" bs=512 count=0 seek=$image_size 2> /dev/null
+
+	# make partition table
+	echo "label: dos" > "$DIBS_WORKSPACE/config/sfdisk.conf"
+
+	if [[ $boot_part -gt 0 ]] ; then
+		if [[ "fat32" = "$CONFIG_IMAGE_PARTITION_BOOT_TYPE" ]] ; then
+			echo "$boot_start,$boot_size,c" >> "$DIBS_WORKSPACE/config/sfdisk.conf"
+		else
+			echo "$boot_start,$boot_size,L" >> "$DIBS_WORKSPACE/config/sfdisk.conf"
+		fi
+	fi
+
+	if [[ $swap_part -gt 0 ]] ; then
+		echo "$swap_start,$swap_size,S" >> "$DIBS_WORKSPACE/config/sfdisk.conf"
+	fi
+
+	echo "$root_start,$root_size,L" >> "$DIBS_WORKSPACE/config/sfdisk.conf"
+
+	cat "$DIBS_WORKSPACE/config/sfdisk.conf" | sfdisk "$DIBS_WORKSPACE/image.bin" > /dev/null
+
+	# create loop device(s)
+	local loop=$(losetup -f)
+	losetup -P $loop "$DIBS_WORKSPACE/image.bin"
+
+	# make filesystem(s)
+	if [[ $boot_size -gt 0 ]] ; then
+		if [[ "fat32" = "$CONFIG_IMAGE_PARTITION_BOOT_TYPE" ]] ; then
+			mkfs.fat -F 32 "${loop}p$boot_part" > /dev/null
+		else
+			mkfs.$CONFIG_IMAGE_PARTITION_BOOT_TYPE "${loop}p$boot_part" &> /dev/null
+		fi
+	fi
+
+	if [[ $swap_size -gt 0 ]] ; then
+		mkswap "${loop}p$swap_part" > /dev/null
+	fi
+
+	mkfs.$CONFIG_IMAGE_PARTITION_ROOT_TYPE "${loop}p$root_part" &> /dev/null
+
+	# mount filesystm(s) under target
+	mkdir -p "$DIBS_WORKSPACE/target"
+	mount "${loop}p$root_part" "$DIBS_WORKSPACE/target"
+	if [[ $boot_part -gt 0 ]] ; then
+		mkdir -p "$DIBS_WORKSPACE/target/boot"
+		mount "${loop}p$boot_part" "$DIBS_WORKSPACE/target/boot"
+	fi
+
+	# expand rootfs.tar
+	dibs_untar
+
+	# write fstab
+	local f="$DIBS_WORKSPACE/target/etc/fstab"
+	echo "# /etc/fstab: static file system information.
+#
+# Use 'blkid' to print the universally unique identifier for a
+# device; this may be used with UUID= as a more robust way to name devices
+# that works even if disks are added and removed. See fstab(5).
+#
+# <file system> <mount point>   <type>  <options>       <dump>  <pass>" > "$f"
+
+	if [[ $boot_part -gt 0 ]] ; then
+		local uuid=$(blkid -o value -s UUID "${loop}p$boot_part")
+		if [[ "fat32" = "$CONFIG_IMAGE_PARTITION_BOOT_TYPE" ]] ; then
+			echo "UUID=$uuid /boot fat umask=0077 0 1" >> "$f"
+		else
+			echo "UUID=$uuid /boot $CONFIG_IMAGE_PARTITION_BOOT_TYPE noatime 0 1" >> "$f"
+		fi
+	fi
+
+	if [[ $swap_part -gt 0 ]] ; then
+		local uuid=$(blkid -o value -s UUID "${loop}p$swap_part")
+		echo "UUID=$uuid none swap sw 0 0" >> "$f"
+	fi
+
+	local uuid=$(blkid -o value -s UUID "${loop}p$root_part")
+	echo "UUID=$uuid / $CONFIG_IMAGE_PARTITION_ROOT_TYPE noatime,errors=remount-ro 0 1" >> "$f"
+
+	# flush
+	sync
+
+	# unmount filesystem(s)
+	if [[ $boot_part -gt 0 ]] ; then
+		umount "$DIBS_WORKSPACE/target/boot"
+	fi
+	umount "$DIBS_WORKSPACE/target"
+
+	rmdir "$DIBS_WORKSPACE/target"
+
+	# teardown loop device(s)
+	losetup -d $loop
+}
+
 dibs_regen_help="regen: dibs regen
     Rebuilds all configuration dependent files such as multistrap.conf."
 function dibs_regen()
@@ -203,17 +340,17 @@ function dibs_regen()
 	require_config
 
 	local f="$DIBS_WORKSPACE/config/stage2.sh"
-	echo "#!/bin/sh" > "$f"
-	echo >> "$f"
-	echo "set -e" >> "$f"
-	echo "export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true" >> "$f"
-	echo "export LC_ALL=C LANGUAGE=C LANG=C" >> "$f"
-	echo "/var/lib/dpkg/info/dash.preinst install" >> "$f"
-	echo "mount proc -t proc /proc" >> "$f"
-	echo "rm -f /var/run/init.upgraded" >> "$f"
-	echo "dpkg --configure -a" >> "$f"
-	echo "umount /proc" >> "$f"
-	echo "rm /stage2.sh" >> "$f"
+	echo "#!/bin/sh
+
+set -e
+export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true
+export LC_ALL=C LANGUAGE=C LANG=C
+/var/lib/dpkg/info/dash.preinst install
+mount proc -t proc /proc
+rm -f /var/run/init.upgraded
+dpkg --configure -a
+umount /proc
+rm -- \$0" > "$f"
 	chmod 755 "$f"
 
 	local extra_packages
@@ -224,52 +361,53 @@ function dibs_regen()
 	fi
 
 	local f="$DIBS_WORKSPACE/config/multistrap.conf"
-	echo "[General]" > "$f"
-	echo "noauth=true" >> "$f"
-	echo "unpack=true" >> "$f"
-	echo "debootstrap=${CONFIG_DISTRO^} Security" >> "$f"
-	echo "aptsources=${CONFIG_DISTRO^} Security" >> "$f"
-	echo "cleanup=true" >> "$f"
-	echo "arch=$CONFIG_ARCH" >> "$f"
-	echo "directory=target" >> "$f"
-	echo "configscript=config/stage2.sh" >> "$f"
-	echo >> "$f"
+	echo "[General]
+noauth=true
+unpack=true
+debootstrap=${CONFIG_DISTRO^} Security
+aptsources=${CONFIG_DISTRO^} Security
+cleanup=true
+arch=$CONFIG_ARCH
+directory=target
+configscript=config/stage2.sh
+" > "$f"
 	if [[ "$CONFIG_DISTRO" = "debian" ]] ; then
-		echo "[Debian]" >> "$f"
-		echo "packages=$CONFIG_PACKAGES $extra_packages" >> "$f"
-		echo "source=http://deb.debian.org/debian" >> "$f"
-		echo "keyring=debian-archive-keyring" >> "$f"
-		echo "components=main contrib non-free" >> "$f"
-		echo "suite=$CONFIG_RELEASE" >> "$f"
-		echo >> "$f"
-		echo "[Security]" >> "$f"
-		echo "packages=" >> "$f"
-		echo "source=http://security.debian.org/" >> "$f"
-		echo "keyring=debian-archive-keyring" >> "$f"
-		echo "components=main contrib non-free" >> "$f"
-		echo "suite=$CONFIG_RELEASE/updates" >> "$f"
+		echo "[Debian]
+packages=$CONFIG_PACKAGES $extra_packages
+source=http://deb.debian.org/debian
+keyring=debian-archive-keyring
+components=main contrib non-free
+suite=$CONFIG_RELEASE
+
+[Security]
+packages=
+source=http://security.debian.org/
+keyring=debian-archive-keyring
+components=main contrib non-free
+suite=$CONFIG_RELEASE/updates
+" >> "$f"
 	elif [[ "$CONFIG_DISTRO" = "ubuntu" ]] ; then
-		echo "[Ubuntu]" >> "$f"
-		echo "packages=$CONFIG_PACKAGES $extra_packages" >> "$f"
+		echo "[Ubuntu]
+packages=$CONFIG_PACKAGES $extra_packages" >> "$f"
 		if [[ "$CONFIG_ARCH" != "amd64" ]] && [[ "$CONFIG_ARCH" != "i386" ]] ; then
 			echo "source=http://ports.ubuntu.com/ubuntu-ports" >> "$f"
 		else
 			echo "source=http://archive.ubuntu.com/ubuntu" >> "$f"
 		fi
-		echo "keyring=ubuntu-keyring" >> "$f"
-		echo "components=main restricted universe multiverse" >> "$f"
-		echo "suite=$CONFIG_RELEASE" >> "$f"
-		echo >> "$f"
-		echo "[Security]" >> "$f"
-		echo "packages=" >> "$f"
+		echo "keyring=ubuntu-keyring
+components=main restricted universe multiverse
+suite=$CONFIG_RELEASE
+
+[Security]
+packages=" >> "$f"
 		if [[ "$CONFIG_ARCH" != "amd64" ]] && [[ "$CONFIG_ARCH" != "i386" ]] ; then
 			echo "source=http://ports.ubuntu.com/ubuntu-ports" >> "$f"
 		else
 			echo "source=http://archive.ubuntu.com/ubuntu" >> "$f"
 		fi
-		echo "keyring=ubuntu-keyring" >> "$f"
-		echo "components=main restricted universe multiverse" >> "$f"
-		echo "suite=$CONFIG_RELEASE-security" >> "$f"
+		echo "keyring=ubuntu-keyring
+components=main restricted universe multiverse
+suite=$CONFIG_RELEASE-security" >> "$f"
 	fi
 }
 
@@ -334,6 +472,7 @@ function dibs_usage()
     build
     config [board]
     help
+	image
     regen
     shell
     tar

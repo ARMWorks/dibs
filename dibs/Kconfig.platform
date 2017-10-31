@@ -18,6 +18,18 @@ menu "Platform"
 			depends on BOARD="generic"
 	endchoice
 
+	choice
+		prompt "Bootloader"
+		default BOOTLOADER_NANOBOOT if BOARD="nanopi"
+		default BOOTLOADER_UBOOT if BOARD="nanopi_neo_plus2"
+		config BOOTLOADER_NANOBOOT
+			bool "Nanoboot" if BOARD="nanopi"
+		config BOOTLOADER_SUPERBOOT
+			bool "Superboot" if BOARD="mini210"
+		config BOOTLOADER_UBOOT
+			bool "U-Boot" if BOARD!="mini210"
+	endchoice
+
 	choice DISTRO
 		prompt "Distribution"
 		config DISTRO_DEBIAN

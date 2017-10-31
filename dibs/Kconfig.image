@@ -1,0 +1,40 @@
+menu "Image"
+	config IMAGE_PARTITION_BOOT
+		bool "Boot partition"
+	if IMAGE_PARTITION_BOOT
+		config IMAGE_PARTITION_BOOT_SIZE
+			int "Boot partition size (in MiB)"
+			default 100
+		choice IMAGE_PARTITION_BOOT_TYPE
+			prompt "Boot partition type"
+			default IMAGE_PARTITION_BOOT_TYPE_FAT32
+			config IMAGE_PARTITION_BOOT_TYPE_EXT2
+				bool "ext2"
+			config IMAGE_PARTITION_BOOT_TYPE_EXT3
+				bool "ext3"
+			config IMAGE_PARTITION_BOOT_TYPE_EXT4
+				bool "ext4"
+			config IMAGE_PARTITION_BOOT_TYPE_FAT32
+				bool "fat32"
+		endchoice
+	endif
+	config IMAGE_PARTITION_SWAP
+		bool "Swap partition"
+	if IMAGE_PARTITION_SWAP
+		config IMAGE_PARTITION_SWAP_EMBED
+			bool "Embed swap partition in image" if IMAGE_PARTITION_BOOT
+		config IMAGE_PARTITION_SWAP_SIZE
+			int "Swap partition size (in MiB)"
+			default 512
+	endif
+	choice IMAGE_PARTITION_ROOT_TYPE
+		prompt "Root partition type"
+		default IMAGE_PARTITION_ROOT_TYPE_EXT4
+		config IMAGE_PARTITION_ROOT_TYPE_EXT2
+			bool "ext2"
+		config IMAGE_PARTITION_ROOT_TYPE_EXT3
+			bool "ext3"
+		config IMAGE_PARTITION_ROOT_TYPE_EXT4
+			bool "ext4"
+	endchoice
+endmenu

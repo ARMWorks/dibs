@@ -13,6 +13,15 @@ function platform_config()
 		CONFIG_ARCH="i386"
 	fi
 
+	CONFIG_BOOTLOADER=
+	if [[ "y" = "$CONFIG_BOOTLOADER_NANOBOOT" ]] ; then
+		CONFIG_BOOTLOADER="nanoboot"
+	elif [[ "y" = "$CONFIG_BOOTLOADER_SUPERBOOT" ]] ; then
+		CONFIG_BOOTLOADER="superboot"
+	elif [[ "y" = "$CONFIG_BOOTLOADER_UBOOT" ]] ; then
+		CONFIG_BOOTLOADER="uboot"
+	fi
+
 	CONFIG_DISTRO=
 	CONFIG_RELEASE=
 	if [[ "y" = "$CONFIG_DISTRO_DEBIAN" ]] ; then
