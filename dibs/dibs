@@ -83,10 +83,16 @@ function install_static_qemu()
 		exit 1
 	fi
 
-	if [[ "$CONFIG_ARCH" = "armel" ]] || [[ "$CONFIG_ARCH" = "armhf" ]] ; then
+	local host=$(uname -m)
+
+	if [[ ( $CONFIG_ARCH = armel || $CONFIG_ARCH = armhf ) && $host != arm* ]] ; then
 		cp /usr/bin/qemu-arm-static "$DIBS_TARGET/usr/bin"
-	elif [[ "$CONFIG_ARCH" = "arm64" ]] ; then
+	elif [[ $CONFIG_ARCH = arm64 && ( $host != aarch64 ) ]] ; then
 		cp /usr/bin/qemu-aarch64-static "$DIBS_TARGET/usr/bin"
+	elif [[ $CONFIG_ARCH = i386 && ( $host != i686 && $host != x86_64 ) ]] ; then
+		cp /usr/bin/qemu-i386-static "$DIBS_TARGET/usr/bin"
+	elif [[ $CONFIG_ARCH = amd64 && $host != x86_64 ]] ; then
+		cp /usr/bin/qemu-x86_64-static "$DIBS_TARGET/usr/bin"
 	fi
 }
 
@@ -98,10 +104,16 @@ function uninstall_static_qemu()
 		exit 1
 	fi
 
-	if [[ "$CONFIG_ARCH" = "armel" ]] || [[ "$CONFIG_ARCH" = "armhf" ]] ; then
+	local host=$(uname -m)
+
+	if [[ ( $CONFIG_ARCH = armel || $CONFIG_ARCH = armhf ) && $host != arm* ]] ; then
 		rm -f "$DIBS_TARGET/usr/bin/qemu-arm-static"
-	elif [[ "$CONFIG_ARCH" = "arm64" ]] ; then
+	elif [[ $CONFIG_ARCH = arm64 && ( $host != aarch64 ) ]] ; then
 		rm -f "$DIBS_TARGET/usr/bin/qemu-aarch64-static"
+	elif [[ $CONFIG_ARCH = i386 && ( $host != i686 && $host != x86_64 ) ]] ; then
+		rm -f "$DIBS_TARGET/usr/bin/qemu-i386-static"
+	elif [[ $CONFIG_ARCH = amd64 && $host != x86_64 ]] ; then
+		rm -f "$DIBS_TARGET/usr/bin/qemu-x86_64-static"
 	fi
 }
 
