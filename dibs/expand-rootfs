@@ -1,0 +1,153 @@
+#!/bin/bash
+
+set -e
+
+soc=
+reserved_sectors=0
+swap_sectors=0
+target_ops=n
+
+while getopts ":c:hr:s:t" opt; do
+	case $opt in
+		c)
+			soc=$OPTARG
+			;;
+		h)
+			echo "Usage: $0 [-c SOC] [-r RESERVEDSIZE] [-s SWAPSIZE [-t]] PART" >&2
+			echo "SOC is the name of the SOC in use." >&2
+			echo "RESERVEDSIZE and SWAPSIZE are number of sectors" >&2
+			echo "PART is either a UUID=uuid or path to a partition device" >&2
+			exit 1
+			;;
+		r)
+			reserved_sectors=$OPTARG
+			;;
+		s)
+			swap_sectors=$OPTARG
+			;;
+		t)
+			target_ops=y
+			;;
+		\?)
+			echo "Invalid option: -$OPTARG" >&2
+			echo "Please see: $0 -h" >&2
+			exit 1
+			;;
+		:)
+			echo "Option -$OPTARG requires an argument." >&2
+			exit 1
+			;;
+	esac
+done
+
+shift $((OPTIND-1))
+
+if [[ $1 == UUID=* ]] ; then
+	root_uuid=${1#UUID=}
+	set +e
+	root_part=$(blkid -U $root_uuid)
+	set -e
+	if [[ -z "$root_part" ]] ; then
+		echo "Invalid partition uuid." >&2
+		exit 1
+	fi
+elif [[ $1 == /dev/* ]] ; then
+	root_part=$1
+else
+	echo "UUID or device required." >&2
+	exit 1
+fi
+
+disk_device=/dev/$(lsblk -no pkname $root_part)
+disk_size=$(cat /sys/block/${disk_device#/dev/}/size)
+root_index=${root_part#${disk_device}p}
+
+# extend the reserved area for the s3c2451 when the disk is SDHC
+if [[ "s3c2451" = "$soc" && $disk_device -ge 4194303 ]]; then
+	let reserved_sectors=reserved_sectors+1024
+fi
+
+# parse the output of sfdisk to get the current partition layout
+num_parts=0
+IFS=$'\n'
+for line in $(sfdisk -d $disk_device | grep '^/dev') ; do
+	let num_parts=num_parts+1
+	part_start[$num_parts]=$(grep -oP 'start= *\K[0-9]+' <<< $line)
+	part_size[$num_parts]=$(grep -oP 'size= *\K[0-9]+' <<< $line)
+	part_type[$num_parts]=$(grep -oP 'type= *\K[0-9a-f]+' <<< $line)
+done
+IFS=' '
+
+# check that the partition provided is the last
+if [[ $root_index -ne $num_parts ]] ; then
+	echo "Partition given is not last on disk. Refusing to continue!" >&2
+	exit 1
+fi
+
+# check that the partition provided is Linux type
+if [[ "83" != ${part_type[$root_index]} ]] ; then
+	echo "Partition given is not type Linux. Refusing to continue!" >&2
+	exit 1
+fi
+
+# if swap was requested, check that a swap partition does not already exist
+if [[ $swap_sectors -gt 0 ]] ; then
+	n=0
+	while [[ $n -lt $num_parts ]] ; do
+		let n=n+1
+		if [[ ${part_type[$n]} == "82" ]] ; then
+			echo "Swap partition already exists. Refusing to continue!" >&2
+		fi
+	done
+	if [[ $num_parts -gt 3 ]] ; then
+		echo "No room for swap partition. Refusing to continue!" >&2
+	fi
+fi
+
+if [[ $num_parts -gt 4 ]] ; then
+	echo "Extended partition detected. Refusing to continue!" >&2
+fi
+
+# calculate new root size
+let new_root_size=disk_size-part_start[num_parts]-reserved_sectors-swap_sectors
+
+if [[ $new_root_size -lt ${part_size[$num_parts]} ]] ; then
+	echo "Cannot shrink partition. Refusing to continue!" >&2
+fi
+
+# all is good, save it
+let part_size[num_parts]=new_root_size
+
+# if swap, add partition info
+if [[ $swap_sectors -gt 0 ]] ; then
+	let n=num_parts+1
+	let part_start[n]=part_start[num_parts]+part_size[num_parts]
+	let part_size[n]=swap_sectors
+	part_type[$n]="82"
+	let num_parts=n
+fi
+
+# build sfdisk output and repartition
+n=0
+while [[ $n -lt $num_parts ]]; do
+	let n=n+1
+	s="$s${part_start[$n]},${part_size[$n]},${part_type[$n]}"$'\n'
+done
+sfdisk "$disk_device" <<< $s &> /dev/null
+
+# if swap, make swap and optionally enable it
+if [[ $swap_sectors -gt 0 ]] ; then
+	swap_device="${disk_device}p$num_parts"
+	partprobe "$disk_device"
+	mkswap "$swap_device" &> /dev/null
+	swap_uuid=$(blkid -o value -s UUID "$swap_device")
+	if [[ "y" == "$target_ops" ]] ; then
+		echo "UUID=$swap_uuid none swap sw 0 0" >> /etc/fstab
+		swapon "$swap_device"
+	fi
+fi
+
+# notify kernel and resize the filesystem
+resizepart "$disk_device" $root_index ${part_size[$root_index]}
+resize2fs -f "$root_part" &> /dev/null
+

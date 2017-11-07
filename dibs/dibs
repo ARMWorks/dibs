@@ -26,7 +26,7 @@ fi
 
 function require_workspace()
 {
-	if [[ -z "$DIBS_WORKSPACE" ]] || [[ ! -f "$DIBS_WORKSPACE/.dibs_workspace" ]]; then
+	if [[ -z "$DIBS_WORKSPACE" || ! -f "$DIBS_WORKSPACE/.dibs_workspace" ]]; then
 		echo "DIBS workspace not found. Try creating a directory and run \"dibs board\"."
 		exit 1
 	fi
@@ -78,7 +78,7 @@ function require_target_dir()
 # assumes require_config has already been ran
 function install_static_qemu()
 {
-	if [[ -z "$DIBS_TARGET" ]] || [[ "$DIBS_TARGET" = "/" ]] ; then
+	if [[ -z "$DIBS_TARGET" || "$DIBS_TARGET" = "/" ]] ; then
 		echo "install_static_qemu function cowardly refusing to run."
 		exit 1
 	fi
@@ -99,7 +99,7 @@ function install_static_qemu()
 # assumes require_config has already been ran
 function uninstall_static_qemu()
 {
-	if [[ -z "$DIBS_TARGET" ]] || [[ "$DIBS_TARGET" = "/" ]] ; then
+	if [[ -z "$DIBS_TARGET" || "$DIBS_TARGET" = "/" ]] ; then
 		echo "uninstall_static_qemu function cowardly refusing to run."
 		exit 1
 	fi
@@ -145,6 +145,7 @@ function dibs_build()
 	network_postinstall
 	system_postinstall
 	declare -fF board_postinstall > /dev/null && board_postinstall
+	cp "$DIBS_ROOT/dibs/expand-rootfs" "$DIBS_TARGET/usr/local/bin"
 	uninstall_static_qemu
 	dibs_tar
 	popd > /dev/null
@@ -178,7 +179,7 @@ help:
 	cp -r "$DIBS_ROOT/boards/$board/"* "$DIBS_WORKSPACE/board"
 	shopt -u dotglob
 
-	if [[ -f "$DIBS_WORKSPACE/board/config" ]] && [[ ! -f "$DIBS_WORKSPACE/config/config" ]] ; then
+	if [[ -f "$DIBS_WORKSPACE/board/config" && ! -f "$DIBS_WORKSPACE/config/config" ]] ; then
 		cp "$DIBS_WORKSPACE/board/config" "$DIBS_WORKSPACE/config/config"
 	fi
 
@@ -219,8 +220,8 @@ function dibs_image()
 
 	# determine partition numbers, offsets and sizes, and the image size
 	local offset=64
-	if [[ "y" = "$bootloader_at_start" ]] ; then
-		offset=$(expr $offset + 8128) # 4 MB
+	if [[ "y" = "$CONFIG_IMAGE_BOOTLOADER_AT_BEGINING" ]] ; then
+		let offset=offset+8128 # 4 MB
 	fi
 
 	local part=1
@@ -228,25 +229,26 @@ function dibs_image()
 	if [[ "y" = "$CONFIG_IMAGE_PARTITION_BOOT" ]] ; then
 		boot_part=$part
 		local boot_start=$offset
-		boot_size=$(expr $CONFIG_IMAGE_PARTITION_BOOT_SIZE \* 2048)
-		offset=$(expr $offset + $boot_size)
-		part=$(expr $part + 1)
+		let boot_size=CONFIG_IMAGE_PARTITION_BOOT_SIZE*2048
+		let offset=offset+boot_size
+		let part=part+1
 	fi
 
 	local swap_part=0
 	if [[ "y" = "$CONFIG_IMAGE_PARTITION_SWAP_EMBED" ]] ; then
 		swap_part=$part
 		local swap_start=$offset
-		swap_size=$(expr $CONFIG_IMAGE_PARTITION_SWAP_SIZE \* 2048)
-		offset=$(expr $offset + $swap_size)
-		part=$(expr $part + 1)
+		let swap_size=CONFIG_IMAGE_PARTITION_SWAP_SIZE*2048
+		let offset=offset+swap_size
+		let part=part+1
 	fi
 
 	local root_part=$part
 	local root_start=$offset
 	local tarball_size=$(du -0 -b "$DIBS_WORKSPACE/rootfs.tar" | cut -f1)
-	local root_size=$(expr \( $tarball_size \* 12 / 10 + 511 \) / 512)
-	offset=$(expr $offset + $root_size)
+	local root_size
+	let root_size=(tarball_size*12/10+511)/512
+	let offset=offset+root_size
 
 	local image_size=$offset
 
@@ -293,21 +295,23 @@ function dibs_image()
 	mkfs.$CONFIG_IMAGE_PARTITION_ROOT_TYPE "${loop}p$root_part" &> /dev/null
 
 	# mount filesystm(s) under target
-	mkdir -p "$DIBS_WORKSPACE/target"
-	mount "${loop}p$root_part" "$DIBS_WORKSPACE/target"
+	export DIBS_TARGET="$DIBS_WORKSPACE/target"
+	mkdir -p "$DIBS_TARGET"
+	mount "${loop}p$root_part" "$DIBS_TARGET"
 	if [[ $boot_part -gt 0 ]] ; then
-		mkdir -p "$DIBS_WORKSPACE/target/boot"
-		mount "${loop}p$boot_part" "$DIBS_WORKSPACE/target/boot"
+		mkdir -p "$DIBS_TARGET/boot"
+		mount "${loop}p$boot_part" "$DIBS_TARGET/boot"
 	fi
 
 	# expand rootfs.tar
 	dibs_untar
+	install_static_qemu
 
 	# write fstab
-	local f="$DIBS_WORKSPACE/target/etc/fstab"
+	local f="$DIBS_TARGET/etc/fstab"
 	echo "# /etc/fstab: static file system information.
 #
-# Use 'blkid' to print the universally unique identifier for a
+# Use 'blkid' to prin			t the universally unique identifier for a
 # device; this may be used with UUID= as a more robust way to name devices
 # that works even if disks are added and removed. See fstab(5).
 #
@@ -330,14 +334,55 @@ function dibs_image()
 	local uuid=$(blkid -o value -s UUID "${loop}p$root_part")
 	echo "UUID=$uuid / $CONFIG_IMAGE_PARTITION_ROOT_TYPE noatime,errors=remount-ro 0 1" >> "$f"
 
+	# firstboot
+	if [[ "s3c2451" = "$CONFIG_SOC" ]] ; then
+		if [[ "nanoboot" = "$CONFIG_BOOTLOADER" ]] ; then
+			let reserved_size=562
+		elif [[ "uboot" = "$CONFIG_BOOTLOADER" ]] ; then
+			let reserved_size=12850
+		fi
+	fi
+
+	if [[ "y" = "$CONFIG_IMAGE_PARTITION_SWAP" && "y" != "$CONFIG_IMAGE_PARTITION_SWAP_EMBED" ]] ; then
+		let swap_size=CONFIG_IMAGE_PARTITION_SWAP_SIZE*2048
+	fi
+
+	# write out firstboot
+	f="$DIBS_TARGET/etc/init.d/firstboot"
+	echo "#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          firstboot
+# Required-Start:    \$remote_fs \$syslog
+# Required-Stop:
+# X-Start-Before:    dropbear
+# Default-Start:     S
+# Default-Stop:
+# Short-Description: First boot configuration.
+### END INIT INFO
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+test \"$1\" != \"start\" && exit 0
+
+expand-rootfs -c $CONFIG_SOC ${reserved_size:+-r $reserved_size} ${swap_size:+-s $swap_size -t}
+dpkg -s dropbear &> /dev/null && dpkg-reconfigure dropbear
+
+update-rc.d firstboot disable
+rm -- \$0"
+	chmod 755 "$f"
+
+	chroot "$DIBS_TARGET" /usr/sbin/update-rc.d firstboot defaults
+
+	uninstall_static_qemu
+
 	# flush
 	sync
 
 	# unmount filesystem(s)
 	if [[ $boot_part -gt 0 ]] ; then
-		umount "$DIBS_WORKSPACE/target/boot"
+		umount "$DIBS_TARGET/boot"
 	fi
-	umount "$DIBS_WORKSPACE/target"
+	umount "$DIBS_TARGET"
 
 	rmdir "$DIBS_WORKSPACE/target"
 
@@ -401,7 +446,7 @@ suite=$CONFIG_RELEASE/updates
 	elif [[ "$CONFIG_DISTRO" = "ubuntu" ]] ; then
 		echo "[Ubuntu]
 packages=$CONFIG_PACKAGES $extra_packages" >> "$f"
-		if [[ "$CONFIG_ARCH" != "amd64" ]] && [[ "$CONFIG_ARCH" != "i386" ]] ; then
+		if [[ "$CONFIG_ARCH" != "amd64" && "$CONFIG_ARCH" != "i386" ]] ; then
 			echo "source=http://ports.ubuntu.com/ubuntu-ports" >> "$f"
 		else
 			echo "source=http://archive.ubuntu.com/ubuntu" >> "$f"
@@ -412,7 +457,7 @@ suite=$CONFIG_RELEASE
 
 [Security]
 packages=" >> "$f"
-		if [[ "$CONFIG_ARCH" != "amd64" ]] && [[ "$CONFIG_ARCH" != "i386" ]] ; then
+		if [[ "$CONFIG_ARCH" != "amd64" && "$CONFIG_ARCH" != "i386" ]] ; then
 			echo "source=http://ports.ubuntu.com/ubuntu-ports" >> "$f"
 		else
 			echo "source=http://archive.ubuntu.com/ubuntu" >> "$f"

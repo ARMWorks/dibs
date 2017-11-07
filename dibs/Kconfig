@@ -8,6 +8,11 @@ config BOARD
 	string 
 	default DIBS_BOARD
 
+config SOC
+	string
+	default "s3c2451" if DIBS_BOARD="mini2451" || DIBS_BOARD="nanopi"
+	default "unknown"
+
 source "dibs/Kconfig.platform"
 source "config/Kconfig.packages"
 source "dibs/Kconfig.system"

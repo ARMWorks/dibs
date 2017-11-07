@@ -37,4 +37,10 @@ menu "Image"
 		config IMAGE_PARTITION_ROOT_TYPE_EXT4
 			bool "ext4"
 	endchoice
+	config IMAGE_BOOTLOADER_AT_BEGINING
+		bool
+		default "y" if SOC!="s3c2451"
+	config IMAGE_BOOTLOADER_AT_END
+		bool
+		default "y" if SOC="s3c2451"
 endmenu
