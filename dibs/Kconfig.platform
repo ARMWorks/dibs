@@ -6,13 +6,13 @@ menu "Platform"
 			depends on BOARD="generic"
 		config ARCH_ARM64
 			bool "arm64"
-			depends on BOARD="generic" || BOARD="nanopi_neo_plus2"
+			depends on BOARD="generic" || BOARD="nanopi_neo_plus2" || BOARD="nanopi_fire3"
 		config ARCH_ARMEL
 			bool "armel"
-			depends on BOARD="generic" || BOARD="nanopi" || BOARD="nanopi2"
+			depends on BOARD="generic" || BOARD="nanopi" || BOARD="nanopi2" || BOARD="nanopi_fire3"
 		config ARCH_ARMHF
 			bool "armhf"
-			depends on BOARD="generic" || BOARD="nanopi2"
+			depends on BOARD="generic" || BOARD="nanopi2" || BOARD="nanopi_fire3"
 		config ARCH_I386
 			bool "i386"
 			depends on BOARD="generic"
