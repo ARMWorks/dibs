@@ -11,6 +11,7 @@ config BOARD
 config SOC
 	string
 	default "s3c2451" if DIBS_BOARD="mini2451" || DIBS_BOARD="nanopi"
+	default "s5p6818" if DIBS_BOARD="nanopi_fire3" || DIBS_BOARD="nanopc_t3_plus"
 	default "unknown"
 
 source "dibs/Kconfig.platform"
