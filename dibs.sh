@@ -1,6 +1,7 @@
 #!/bin/bash
 
 DIBS=$(dirname $(readlink -e "$0"))
+ARGS=("$@")
 
 BUILT=1
 CLEANUP=0
@@ -47,11 +48,7 @@ require_elevation() {
         echo "Superuser privlidges are required for this operation."
         exit 1
     fi
-
-    for e in "${BASH_ARGV[@]}"; do
-        args=( "$e" "${args[@]}" )
-    done
-    exec sudo "$0" "${args[@]}"
+    exec sudo "$0" "${ARGS[@]}"
 }
 
 require_rootfs() {
