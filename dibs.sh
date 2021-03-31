@@ -199,7 +199,7 @@ do_debootstrap() {
 
     local extra_args
     local removed_keys=/usr/share/keyrings/debian-archive-removed-keys.gpg
-    if [ -e $removed_keys ]; then
+    if [[ -e $removed_keys ]]; then
         extra_args+=" --keyring=$removed_keys"
     fi
 
