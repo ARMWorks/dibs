@@ -197,12 +197,18 @@ do_debootstrap() {
         cp -n "${CACHE}/"*.deb "${ROOTFS}/var/cache/apt/archives"
     fi
 
+    local extra_args
+    local removed_keys=/usr/share/keyrings/debian-archive-removed-keys.gpg
+    if [ -e $removed_keys ]; then
+        extra_args+=" --keyring=$removed_keys"
+    fi
+
     local packages=$(echo "$EXTRA_PACKAGES" | awk -v ORS=, '{ print $1 }' | sed 's/,$/\n/')
     if [[ "$packages" ]]; then
-        try --out debootstrap --variant=minbase --arch=$ARCH --include="$packages" $SUITE "$ROOTFS" $MIRROR
-    else
-        try --out debootstrap --variant=minbase --arch=$ARCH $SUITE "$ROOTFS" $MIRROR
+        extra_args+=" --include=$packages"
     fi
+
+    try --out debootstrap --variant=minbase --arch=$ARCH $extra_args $SUITE "$ROOTFS" $MIRROR
 
     run_as_user mkdir -p "$CACHE"
     run_as_user cp -n "${ROOTFS}/var/cache/apt/archives/"*.deb "$CACHE"
