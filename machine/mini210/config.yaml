@@ -1,0 +1,22 @@
+config:
+  image-size: 512MB
+  mirror: http://mirrors.kernel.org/debian
+  distro: debian
+  arch: armhf
+  suite: jessie
+
+steps:
+  install:
+    dosfstools
+    kmod
+    less
+    locales
+    parted
+    vim-tiny
+    dnsutils
+    ifupdown
+    iputils-ping
+    isc-dhcp-client
+    net-tools
+    openssh-client
+    openssh-server

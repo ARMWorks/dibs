@@ -1,0 +1,8 @@
+.cache/
+/config.yaml
+/build
+/work
+__pycache__/
+*.img
+*.pyc
+.state.yaml
