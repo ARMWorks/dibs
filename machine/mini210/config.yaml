@@ -1,22 +1,24 @@
 config:
-  image-size: 512MB
+  btrfs-size: 512M
   mirror: http://mirrors.kernel.org/debian
   distro: debian
   arch: armhf
   suite: jessie
 
-steps:
+actions:
   install:
-    dosfstools
-    kmod
-    less
-    locales
-    parted
-    vim-tiny
-    dnsutils
-    ifupdown
-    iputils-ping
-    isc-dhcp-client
-    net-tools
-    openssh-client
-    openssh-server
+    - dosfstools
+    - kmod
+    - less
+    - locales
+    - parted
+    - vim-tiny
+    - dnsutils
+    - ifupdown
+    - iputils-ping
+    - isc-dhcp-client
+    - net-tools
+    - openssh-client
+    - openssh-server
+
+  patch: something

@@ -3,7 +3,7 @@ import shutil
 from collections import OrderedDict
 from copy import deepcopy
 
-from . import action, util, yaml
+from . import action, yaml
 
 file_dir = os.path.dirname(os.path.realpath(__file__))
 machine_dir = os.path.abspath(os.path.join(file_dir, '..', 'machine'))
@@ -50,17 +50,16 @@ def save(config):
 
 def revert(config, start, end):
     for i in range(end, start + 1, -1):
-        print('snapshot-delete %d' % (i,))
-        action.run(config, 'snapshot-delete', 'btrfs/snapshots', i)
+        action.snapshot_delete('btrfs/snapshots/%d' % (i,))
 
-    action.run(config, 'remove', 'btrfs/rootfs')
-    action.run(config, 'move', 'btrfs/snapshots/%d' % (start + 1,), 'btrfs/rootfs')
+    action.remove('btrfs/rootfs')
+    action.move('btrfs/snapshots/%d' % (start + 1,), 'btrfs/rootfs')
 
     config['state']['step'] = start
     save(config)
 
 def snapshot(config, step_num):
-    action.run(config, 'snapshot-create', 'btrfs/rootfs' , 'btrfs/snapshots', step_num)
+    action.snapshot_create('btrfs/rootfs' , 'btrfs/snapshots/%d' % (step_num,))
     config['state']['step'] = step_num
     save(config)
 
@@ -92,7 +91,7 @@ def build():
         if os.path.exists('btrfs.img'):
             if config['state'].get('btrfs_mounted'):
                 try:
-                    action.run(config, 'unmount', 'btrfs')
+                    action.unmount('btrfs')
                 except:
                     pass
             os.remove('btrfs.img')
@@ -100,23 +99,22 @@ def build():
             config['state']['btrfs_init'] = False
             save(config)
 
-        action.run(config, 'make-btrfs', 'btrfs.img')
+        action.make_btrfs('btrfs.img', config['config'].get('btrfs-size', '1GB'))
 
     try:
         if not config['state'].get('btrfs_mounted'):
-            action.run(config, 'subvolume-mount', 'btrfs.img', 'btrfs', 0)
+            action.subvolume_mount('btrfs.img', 'btrfs', 0)
             config['state']['btrfs_mounted'] = True
             save(config)
 
         if diff_num < step_num:
-            print(diff_num, step_num)
             revert(config, diff_num, step_num)
             step_num = diff_num
 
         if not config['state'].get('btrfs_init'):
-            action.run(config, 'chown', 'btrfs', os.getuid(), os.getgid())
-            action.run(config, 'subvolume-create', 'btrfs/rootfs')
-            action.run(config, 'chown', 'btrfs/rootfs', 0, 0)
+            action.chown('btrfs', os.getuid(), os.getgid())
+            action.subvolume_create('btrfs/rootfs')
+            action.chown('btrfs/rootfs', 0, 0)
             os.mkdir('btrfs/snapshots')
             config['state']['btrfs_init'] = True
             save(config)
@@ -139,9 +137,8 @@ def build():
     finally:
         if config['state'].get('btrfs_mounted'):
             try:
-                action.run(config, 'unmount', 'btrfs')
+                action.unmount('btrfs')
                 config['state']['btrfs_mounted'] = False
-                pass
             except:
                 pass
         save(config)
