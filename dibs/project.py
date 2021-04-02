@@ -101,15 +101,19 @@ def get_env():
         env._diff = first_diff(env)
         env._state = deepcopy(env.previous_data['state'])
 
-    env._start = env._step = env._state.get('step', 0)
+    env._step = env._state.get('step', 0)
     if env._step == 0:
         env._start_over = True
+
+    if env._start_over:
+        env._diff = 0
 
     return env
 
 def build(env):
     actions = get_actions(env.data)
-    if not env._start_over and env._step - 1 == len(actions):
+    if not env._start_over and len(actions) == env._step - 1 and \
+            env._step == env._diff:
         print('Nothing to do!', file=sys.stderr)
         return
 
@@ -123,8 +127,7 @@ def build(env):
 
     if env._start_over:
         env._state = MultiDict()
-        env._diff = 0
-        env._start = env._step = 0
+        env._step = 0
         if os.path.exists(env.btrfs_image):
             os.remove(env.btrfs_image)
         save(env)
@@ -146,11 +149,11 @@ def build(env):
                         check=True)
 
             env._step = env._diff - 1
-            print('moving', env.root, 'to', env.oldroot)
+            print('moving', env.root, 'to', env.oldroot, file=sys.stderr)
             run(['sudo', 'mv', env.root, env.oldroot], check=True)
 
             snapshot = os.path.join(env.snapshots, str(env._step))
-            print('restoring', snapshot, 'to', env.root)
+            print('restoring', snapshot, 'to', env.root, file=sys.stderr)
             run(['sudo', 'mv', snapshot, env.root], check=True)
 
             run(['sudo', 'btrfs', 'subvolume', 'delete', env.oldroot],

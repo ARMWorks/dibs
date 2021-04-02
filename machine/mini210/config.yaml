@@ -14,7 +14,7 @@ actions:
     #deb-src {config.mirror}/{config.distro} {config.suite} main contrib non-free
     EOF
 
-    if [[ "{{config.suite}}" == "experimental" ]]; then
+    if [[ "{{config.suite}}" != "experimental" ]]; then
       cat >> /etc/apt/sources.list << EOF
     deb http://security.debian.org {config.suite}/updates main contrib non-free
     #deb-src http://security.debian.org {config.suite}/updates main contrib non-free
