@@ -1,24 +1,61 @@
 config:
-  btrfs-size: 512M
-  mirror: http://mirrors.kernel.org/debian
+  btrfs-size: 1G
+  mirror: http://mirrors.kernel.org
   distro: debian
   arch: armhf
   suite: jessie
+  hostname: dibs
+  locale: en_US.UTF-8 UTF-8
 
 actions:
-  install:
-    - dosfstools
-    - kmod
-    - less
-    - locales
-    - parted
-    - vim-tiny
-    - dnsutils
-    - ifupdown
-    - iputils-ping
-    - isc-dhcp-client
-    - net-tools
-    - openssh-client
-    - openssh-server
+  script: | # setup apt sources
+    cat > /etc/apt/sources.list << EOF
+    deb {config.mirror}/{config.distro} {config.suite} main contrib non-free
+    #deb-src {config.mirror}/{config.distro} {config.suite} main contrib non-free
+    EOF
 
-  patch: something
+    if [[ "{{config.suite}}" == "experimental" ]]; then
+      cat >> /etc/apt/sources.list << EOF
+    deb http://security.debian.org {config.suite}/updates main contrib non-free
+    #deb-src http://security.debian.org {config.suite}/updates main contrib non-free
+    EOF
+    fi
+
+  install:
+    - locales
+
+  script: | # set and generate locale
+    sed -i 's/^\([^#].*\)$/# \1/' /etc/locale.gen
+    sed -i 's/^# \({config.locale}\)$/\1/' /etc/locale.gen
+    locale-gen
+
+  script: | # set empty root password
+    sed -i 's/\(root:\)[^:]*\(:\)/\1\2/' /etc/shadow
+
+  script: | # set hostname
+    echo {config.hostname} > /etc/hostname
+    cat > /etc/hosts << EOF
+    127.0.0.1       localhost
+    127.0.1.1       {config.hostname}
+
+    # The following lines are desirable for IPv6 capable hosts
+    ::1     ip6-localhost ip6-loopback
+    fe00::0 ip6-localnet
+    ff00::0 ip6-mcastprefix
+    ff02::1 ip6-allnodes
+    ff02::2 ip6-allrouters
+    EOF
+
+  script: | # cleanup
+    rm -rf /var/lib/apt/lists
+    rm -rf /var/log
+
+    if [[ -n "{config.locale}" ]]; then
+      lang=$(echo {config.locale} | sed 's/^\([^_]\+\)\(_.\+\)\?$/\1/')
+      if [[ -d "/usr/share/locale" ]]; then
+        (cd "/usr/share/locale";
+          find . -maxdepth 1 ! -name $lang -a ! -name "$lang*" -a ! -name "." -type d -exec rm -r "{{}}" \;)
+      fi
+    else
+      rm -r /usr/share/locale/*
+    fi

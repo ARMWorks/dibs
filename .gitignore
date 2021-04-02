@@ -1,7 +1,6 @@
 .cache/
 /config.yaml
-/build
-/work
+/btrfs
 __pycache__/
 *.img
 *.pyc

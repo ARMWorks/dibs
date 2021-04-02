@@ -1,9 +1,12 @@
 import os
 import shutil
-from collections import OrderedDict
+import sys
 from copy import deepcopy
+from subprocess import run
 
-from . import action, yaml
+from . import target
+from .action import run_action
+from .yaml import MultiDict, yaml
 
 file_dir = os.path.dirname(os.path.realpath(__file__))
 machine_dir = os.path.abspath(os.path.join(file_dir, '..', 'machine'))
@@ -16,129 +19,194 @@ def defconfig(machine):
         raise FileExistsError("Refusing to overwrite existing configuration")
     shutil.copyfile(machine_config, 'config.yaml')
 
-def get_steps(config):
-    steps = []
-    for action, action_data in config.get('actions', OrderedDict()).items():
-        if isinstance(action_data, str):
-            steps.append((action, action_data))
-        elif isinstance(action_data, list):
-            for entry in action_data:
-                steps.append((action, entry))
+def get_actions(config):
+    actions = []
+    config_actions = config.get('actions', MultiDict())
+    if config_actions:
+        for action, action_data in config_actions.items():
+            if isinstance(action_data, str):
+                actions.append((action, action_data))
+            elif isinstance(action_data, list):
+                for entry in action_data:
+                    actions.append((action, entry))
 
-    return steps
+    return actions
 
-def first_diff(previous_config, config):
+def first_diff(env):
+    previous_actions = get_actions(env.previous_data)
+    actions = get_actions(env.data)
 
-    if previous_config['config'] != config['config']:
-        return 0
-
-    previous_steps = get_steps(previous_config)
-    steps = get_steps(config)
-
-    zipped_steps = zip(previous_steps, steps)
-    for i, zipped_step in enumerate(zipped_steps):
-        previous_step, step = zipped_step
-
-        if previous_step != step:
+    zipped_actions = tuple(zip(actions, previous_actions))
+    for i, zipped_action in enumerate(zipped_actions):
+        action, previous_action = zipped_action
+        if action != previous_action:
             return i + 1
 
-    return len(steps) + 1
+    return len(zipped_actions) + 1
 
-def save(config):
+def save(env, increment_step=False):
+    config = MultiDict()
+    config['config'] = env.config
+    config['actions'] = env.actions
+
+    if increment_step:
+        env._step += 1
+        env._state['step'] = env._step
+    config['state'] = env._state
+
     with open('.state.yaml', 'w') as f:
-        yaml.ordered_dump(config, f)
+        yaml.dump(config, f)
 
-def revert(config, start, end):
-    for i in range(end, start + 1, -1):
-        action.snapshot_delete('btrfs/snapshots/%d' % (i,))
-
-    action.remove('btrfs/rootfs')
-    action.move('btrfs/snapshots/%d' % (start + 1,), 'btrfs/rootfs')
-
-    config['state']['step'] = start
-    save(config)
-
-def snapshot(config, step_num):
-    action.snapshot_create('btrfs/rootfs' , 'btrfs/snapshots/%d' % (step_num,))
-    config['state']['step'] = step_num
-    save(config)
-
-def build():
-    start_over = False
+def get_env():
+    class Env(object):
+        pass
+    env = Env()
+    env._start_over = False
+    env._state = MultiDict()
 
     if not os.path.exists('config.yaml'):
-        raise FileNotFoundError("Configuration file not found")
+        raise FileNotFoundError('Configuration file not found')
     with open('config.yaml') as f:
-        config = yaml.ordered_load(f)
-        config['state'] = OrderedDict()
+        env.data = yaml.load(f)
+
+    env.config = env.data['config']
+    env.actions = env.data['actions']
+
+    for key, value in env.config.items():
+        key = key.replace('-', '_')
+        setattr(env, key, value)
+
+    env.btrfs_image = 'btrfs.img'
+    env.btrfs = 'btrfs'
+    env.root = os.path.join(env.btrfs, 'root')
+    env.oldroot = os.path.join(env.btrfs, 'oldroot')
+    env.snapshots = os.path.join(env.btrfs, 'snapshots')
+    env.cache = os.path.join('.cache', env.distro, env.arch, env.suite)
+    env.archives = os.path.join(env.root, 'var/cache/apt/archives')
+    env.procfs = os.path.join(env.root, 'proc')
+    env.sysfs = os.path.join(env.root, 'sys')
+    env.usr_bin = os.path.join(env.root, 'usr/bin')
 
     if os.path.exists('.state.yaml'):
         with open('.state.yaml') as f:
-            previous_config = yaml.ordered_load(f)
-        diff_num = first_diff(previous_config, config)
-        config['state'] = deepcopy(previous_config['state'])
+            env.previous_data = yaml.load(f)
+
+    if not os.path.exists(env.btrfs_image) or \
+            not hasattr(env, 'previous_data') or \
+            not env.previous_data or \
+            env.config != env.previous_data['config']:
+        env._start_over = True
+        env._state = MultiDict()
     else:
-        start_over = True
+        env._diff = first_diff(env)
+        env._state = deepcopy(env.previous_data['state'])
 
-    if not os.path.exists('btrfs.img'):
-        start_over = True
+    env._start = env._step = env._state.get('step', 0)
+    if env._step == 0:
+        env._start_over = True
 
-    step_num = config['state'].get('step', 0)
-    if start_over:
-        config['state'] = OrderedDict()
-        diff_num = 0
-        step_num = 0
-        if os.path.exists('btrfs.img'):
-            if config['state'].get('btrfs_mounted'):
-                try:
-                    action.unmount('btrfs')
-                except:
-                    pass
-            os.remove('btrfs.img')
-            config['state']['btrfs_mounted'] = False
-            config['state']['btrfs_init'] = False
-            save(config)
+    return env
 
-        action.make_btrfs('btrfs.img', config['config'].get('btrfs-size', '1GB'))
+def build(env):
+    actions = get_actions(env.data)
+    if not env._start_over and env._step - 1 == len(actions):
+        print('Nothing to do!', file=sys.stderr)
+        return
+
+    if env._state.get('extra_mounted'):
+        target.unmount_extra(env, False)
+        env._state['extra_mounted'] = False
+    if env._state.get('btrfs_mounted'):
+        target.unmount_btrfs(env, False)
+        env._state['btrfs_mounted'] = False
+    save(env)
+
+    if env._start_over:
+        env._state = MultiDict()
+        env._diff = 0
+        env._start = env._step = 0
+        if os.path.exists(env.btrfs_image):
+            os.remove(env.btrfs_image)
+        save(env)
+
+        run(['dd', 'if=/dev/null', 'of=%s' % (env.btrfs_image,), 'bs=1',
+                'seek=%s' % (env.btrfs_size,)], check=True)
+        run(['mkfs.btrfs', '-f', env.btrfs_image], check=True)
 
     try:
-        if not config['state'].get('btrfs_mounted'):
-            action.subvolume_mount('btrfs.img', 'btrfs', 0)
-            config['state']['btrfs_mounted'] = True
-            save(config)
+        if not env._state.get('btrfs_mounted'):
+            target.mount_btrfs(env)
+            env._state['btrfs_mounted'] = True
+            save(env)
 
-        if diff_num < step_num:
-            revert(config, diff_num, step_num)
-            step_num = diff_num
+        if env._diff < env._step:
+            for index in range(env._step - 1, env._diff - 1, -1):
+                snapshot = os.path.join(env.snapshots, str(index))
+                run(['sudo', 'btrfs', 'subvolume', 'delete', snapshot],
+                        check=True)
 
-        if not config['state'].get('btrfs_init'):
-            action.chown('btrfs', os.getuid(), os.getgid())
-            action.subvolume_create('btrfs/rootfs')
-            action.chown('btrfs/rootfs', 0, 0)
-            os.mkdir('btrfs/snapshots')
-            config['state']['btrfs_init'] = True
-            save(config)
+            env._step = env._diff - 1
+            print('moving', env.root, 'to', env.oldroot)
+            run(['sudo', 'mv', env.root, env.oldroot], check=True)
 
-        if step_num == 0:
-            print(('debootstrap',))
-            step_num += 1
-            snapshot(config, step_num)
+            snapshot = os.path.join(env.snapshots, str(env._step))
+            print('restoring', snapshot, 'to', env.root)
+            run(['sudo', 'mv', snapshot, env.root], check=True)
 
-        steps = get_steps(config)
-        for step in steps[max(step_num - 1, 0):]:
-            print(step)
-            step_num += 1
-            snapshot(config, step_num)
+            run(['sudo', 'btrfs', 'subvolume', 'delete', env.oldroot],
+                    check=True)
 
-    except Exception as e:
+            run(['sudo', 'btrfs', 'subvolume', 'snapshot', env.root, snapshot],
+                    check=True)
+
+            save(env, True)
+
+        if env._step == 0:
+            args = []
+            removed_keys = \
+                    '/usr/share/keyrings/debian-archive-removed-keys.gpg'
+            if os.path.exists(removed_keys):
+                args.append('--keyring=%s' % (removed_keys,))
+
+            run(['sudo', 'debootstrap', '--variant=minbase',
+                    '--arch=%s' % (env.arch,)] + args + [env.suite,
+                    env.root, '%s/%s' % (env.mirror, env.distro)],
+                    check=True)
+
+            snapshot = os.path.join(env.snapshots, str(env._step))
+            run(['sudo', 'btrfs', 'subvolume', 'snapshot', env.root, snapshot],
+                    check=True)
+            save(env, True)
+
+        if not env._state.get('extra_mounted'):
+            target.mount_extra(env)
+            env._state['extra_mounted'] = True
+            save(env)
+
+        for action in actions[max(env._step - 1, 0):]:
+            if isinstance(action[0], tuple):
+                action = (action[0][0], action[1])
+            try:
+                run_action(env, action)
+            except:
+                from pprint import pprint
+                pprint(action)
+                raise
+
+            snapshot = os.path.join(env.snapshots, str(env._step))
+            run(['sudo', 'btrfs', 'subvolume', 'snapshot', env.root, snapshot],
+                    check=True)
+            save(env, True)
+
+    except:
         import traceback
         traceback.print_exc()
 
     finally:
-        if config['state'].get('btrfs_mounted'):
-            try:
-                action.unmount('btrfs')
-                config['state']['btrfs_mounted'] = False
-            except:
-                pass
-        save(config)
+        if env._state.get('extra_mounted'):
+            target.unmount_extra(env, False)
+            env._state['extra_mounted'] = False
+        if env._state.get('btrfs_mounted'):
+            target.unmount_btrfs(env, False)
+            env._state['btrfs_mounted'] = False
+        save(env)

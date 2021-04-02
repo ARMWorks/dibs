@@ -1,50 +1,40 @@
 import os
 import subprocess
 
-from .util import sudo
+actions = {}
+def action(fn):
+    name = fn.__name__
+    actions[name] = fn
+    return fn
 
-__all__ = ['make_btrfs', 'mount', 'unmount', 'chown', 'move', 'remove',
-           'subvolume_create', 'subvolume_mount', 'snapshot_create'
-           'snapshot_delete']
+def run_action(env, action):
+    name, args = action
+    if isinstance(args, str):
+        args = (args,)
+    name = name.replace('-', '_')
+    if not name in actions:
+        raise Exception('Unknown action %s' % (name,))
+    actions[name](env, *args)
 
-def _run(*args, **kwargs):
-    result = subprocess.run(*args, **kwargs)
-    if result.returncode != 0:
-        raise subprocess.SubprocessError(repr(args[0]) + ' failed')
-    return result
+@action
+def install(env, package):
+    packages = package.split()
+    subprocess.run(['sudo', 'chroot', env.root, 'apt-get', '-y', 'install'] + packages, check=True)
 
-def make_btrfs(file, size):
-    _run(['dd', 'if=/dev/null', 'of=%s' % (file,), 'bs=1', 'seek=%s' % (size,)])
-    _run(['mkfs.btrfs', '-f', file])
+@action
+def script(env, code):
+    code = code.format(config=env).encode('utf8')
+    script = os.path.join(env.root, '_script.sh')
+    subprocess.run('sudo tee ' + script + ' > /dev/null', input=code, shell=True, check=True)
 
-def mount(type, file, mountpoint):
-    _run(['mkdir', '-p', mountpoint])
-    _run(['sudo', 'mount', '-o', 'loop,rw', '-t', type, file, mountpoint])
+    try:
+        subprocess.run(['sudo', 'chroot', env.root, '/bin/bash', '/_script.sh'], check=True)
+    except:
+        import traceback
+        traceback.print_exc()
+    finally:
+        subprocess.run(['sudo', 'rm', os.path.join(env.root, '_script.sh')], check=True)
 
-def unmount(mountpoint):
-    _run(['sudo', 'sync'])
-    #_run(['sudo', 'btrfs', 'subvolume', 'sync', mountpoint])
-    _run(['sudo', 'umount', mountpoint])
-
-def chown(path, uid, gid):
-    _run(['sudo', 'chown', '%d:%d' % (uid, gid), path])
-
-def move(src, dest):
-    _run(['sudo', 'mv', src, dest])
-
-def remove(path):
-    assert not path.startswith('/')
-    _run(['sudo', 'rm', '-rf', path])
-
-def subvolume_create(path):
-    _run(['btrfs', 'subvolume', 'create', path])
-
-def subvolume_mount(file, mountpoint, subvolid=0):
-    _run(['mkdir', '-p', mountpoint])
-    _run(['sudo', 'mount', '-o', 'loop,rw,subvolid=%d' % (subvolid,), '-t', 'btrfs', file, mountpoint])
-
-def snapshot_create(src, dest):
-    _run(['sudo', 'btrfs', 'subvolume', 'snapshot', src, dest])
-
-def snapshot_delete(path):
-    _run(['sudo', 'btrfs', 'subvolume', 'delete', path])
+@action
+def apt_update(env):
+    subprocess.run(['sudo', 'chroot', env.root, 'apt-update'], check=True)
