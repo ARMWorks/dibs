@@ -12,19 +12,19 @@ def mount(args):
     env = project.get_env()
 
     if not args.force:
-        if env.state.get('btrfs_mounted'):
+        if env._state.get('btrfs_mounted'):
                 print ('aldready mounted, try -f')
                 return
     check = not args.force
 
-    if not env.state.get('btrfs_mounted') and not args.force:
+    if not env._state.get('btrfs_mounted') and not args.force:
         check = False
 
     try:
         target.mount_btrfs(env, check)
-        env.state['btrfs_mounted'] = True
+        env._state['btrfs_mounted'] = True
         target.mount_extra(env, check)
-        env.state['extra_mounted'] = True
+        env._state['extra_mounted'] = True
         project.save(env)
     except:
         print('Could not mount btrfs image', file=sys.stderr)
@@ -33,16 +33,16 @@ def unmount(args):
     env = project.get_env()
 
     if not args.force:
-        if not env.state.get('btrfs_mounted'):
+        if not env._state.get('btrfs_mounted'):
             print('not mounted, try -f')
             return
     check = not args.force
 
     try:
         target.unmount_extra(env, check)
-        env.state['extra_mounted'] = False
+        env._state['extra_mounted'] = False
         target.unmount_btrfs(env, check)
-        env.state['btrfs_mounted'] = False
+        env._state['btrfs_mounted'] = False
         project.save(env)
     except:
         print('Could not unmount btrfs image', file=sys.stderr)
@@ -60,7 +60,7 @@ def config(args):
 def shell(args):
     env = project.get_env()
 
-    skip_mount = env.state.get('btrfs_mounted')
+    skip_mount = env._state.get('btrfs_mounted')
     if not skip_mount:
         target.mount_btrfs(env)
         target.mount_extra(env)
