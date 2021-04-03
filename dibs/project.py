@@ -33,8 +33,21 @@ def get_actions(config):
     return actions
 
 def first_diff(env):
-    previous_actions = get_actions(env.previous_data)
+    if not hasattr(env, 'previous_data') or not env.previous_data:
+        return 0
+
+    config = env.data.get('config', MultiDict())
+    previous_config = env.previous_data.get('config', MultiDict())
+
+    for key in ('btrfs-size', 'mirror', 'distro', 'arch', 'suite'):
+        if config.get(key) != previous_config.get(key):
+            return 0
+
+    if config != previous_config:
+        return 1
+
     actions = get_actions(env.data)
+    previous_actions = get_actions(env.previous_data)
 
     zipped_actions = tuple(zip(actions, previous_actions))
     for i, zipped_action in enumerate(zipped_actions):
@@ -61,7 +74,6 @@ def get_env():
     class Env(object):
         pass
     env = Env()
-    env._start_over = False
     env._state = MultiDict()
 
     if not os.path.exists('config.yaml'):
@@ -91,28 +103,19 @@ def get_env():
         with open('.state.yaml') as f:
             env.previous_data = yaml.load(f)
 
-    if not os.path.exists(env.btrfs_image) or \
-            not hasattr(env, 'previous_data') or \
-            not env.previous_data or \
-            env.config != env.previous_data['config']:
-        env._start_over = True
-        env._state = MultiDict()
-    else:
-        env._diff = first_diff(env)
-        env._state = deepcopy(env.previous_data['state'])
-
+    env._diff = first_diff(env)
+    if not os.path.exists(env.btrfs_image):
+        env._diff = 0
+    env._state = MultiDict() if env._diff == 0 else env.previous_data['state']
     env._step = env._state.get('step', 0)
     if env._step == 0:
-        env._start_over = True
-
-    if env._start_over:
         env._diff = 0
 
     return env
 
 def build(env):
     actions = get_actions(env.data)
-    if not env._start_over and len(actions) == env._step - 1 and \
+    if not env._diff == 0 and len(actions) == env._step - 1 and \
             env._step == env._diff:
         print('Nothing to do!', file=sys.stderr)
         return
@@ -125,7 +128,7 @@ def build(env):
         env._state['btrfs_mounted'] = False
     save(env)
 
-    if env._start_over:
+    if env._diff == 0:
         env._state = MultiDict()
         env._step = 0
         if os.path.exists(env.btrfs_image):

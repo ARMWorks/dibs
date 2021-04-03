@@ -55,7 +55,10 @@ def build(args):
         print(e)
 
 def config(args):
-    project.defconfig(args.CONFIG)
+    try:
+        project.defconfig(args.CONFIG)
+    except FileExistsError as e:
+        print(e)
 
 def shell(args):
     env = project.get_env()

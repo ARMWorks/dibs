@@ -19,22 +19,34 @@ def run_action(env, action):
 @action
 def install(env, package):
     packages = package.split()
-    subprocess.run(['sudo', 'chroot', env.root, 'apt-get', '-y', 'install'] + packages, check=True)
+    subprocess.run(['sudo', 'chroot', env.root, 'apt-get', '-y', 'install'] +
+            packages, check=True)
 
 @action
 def script(env, code):
-    code = code.format(config=env).encode('utf8')
+    code = b'set -e\n' + code.format(config=env).encode('utf8')
     script = os.path.join(env.root, '_script.sh')
-    subprocess.run('sudo tee ' + script + ' > /dev/null', input=code, shell=True, check=True)
+    subprocess.run('sudo tee ' + script + ' > /dev/null', input=code,
+            shell=True, check=True)
 
     try:
-        subprocess.run(['sudo', 'chroot', env.root, '/bin/bash', '/_script.sh'], check=True)
+        subprocess.run(['sudo', 'chroot', env.root, '/bin/bash',
+                '/_script.sh'], check=True)
     except:
         import traceback
         traceback.print_exc()
     finally:
-        subprocess.run(['sudo', 'rm', os.path.join(env.root, '_script.sh')], check=True)
+        subprocess.run(['sudo', 'rm', os.path.join(env.root, '_script.sh')],
+                check=True)
 
 @action
 def apt_update(env):
-    subprocess.run(['sudo', 'chroot', env.root, 'apt-update'], check=True)
+    subprocess.run(['sudo', 'chroot', env.root, 'apt-get', 'update'],
+            check=True)
+
+@action
+def copy(env, arg):
+    for line in arg.splitlines():
+        source, destination = arg.split()
+        subprocess.run('sudo', 'cp', '-r', os.path.join(env.files, source),
+                os.path.join(env.root, destination), check=True)
