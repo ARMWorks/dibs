@@ -23,4 +23,14 @@ changes while developing and testing your image.
 
 ## Usage
 
-TODO
+Commands:
+
+```path/to/dibs.py config [-f] CONFIG```
+
+```path/to/dibs.py build```
+
+```path/to/dibs.py mount [-f]```
+
+```path/to/dibs.py unmount [-f]```
+
+```path/to/dibs.py shell```

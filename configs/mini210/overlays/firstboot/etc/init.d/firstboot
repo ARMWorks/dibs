@@ -15,7 +15,7 @@ test "$1" = "start" || exit 0
 
 test -f /boot/firstboot.txt && . /boot/firstboot.txt
 
-/usr/bin/ssh-keygen -A
+dpkg-reconfigure openssh-server
 update-rc.d firstboot disable
 
 exit 0

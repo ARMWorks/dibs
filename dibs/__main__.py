@@ -5,8 +5,6 @@ import subprocess
 
 import dibs.project as project
 import dibs.target as target
-import dibs.util as util
-
 
 def mount(args):
     env = project.get_env()
