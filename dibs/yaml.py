@@ -1,5 +1,7 @@
 from ruamel.yaml import YAML
+
 from dibs.multidict import MultiDict
+
 
 def _constr_dict(constructor, node):
     md = MultiDict()

@@ -1,5 +1,6 @@
-from subprocess import run
 import os
+from subprocess import run
+
 
 def mount_btrfs(env, check=True):
     run(['mkdir', '-p', env.cache, env.btrfs], check=check)

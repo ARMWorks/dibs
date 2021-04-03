@@ -1,6 +1,5 @@
 import argparse
 from dibs.action import ScriptException
-import os
 import sys
 import subprocess
 
