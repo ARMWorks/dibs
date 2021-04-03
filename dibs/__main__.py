@@ -69,7 +69,7 @@ def shell(args):
         target.mount_extra(env)
 
     try:
-        subprocess.run(['sudo', 'chroot', env.rootfs, '/bin/bash'])
+        subprocess.run(['sudo', 'chroot', env.root, '/bin/bash'])
     except:
         import traceback
         traceback.print_exc()
