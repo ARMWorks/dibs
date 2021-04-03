@@ -1,3 +1,4 @@
+from glob import iglob
 import os
 import subprocess
 
@@ -17,14 +18,14 @@ def run_action(env, action):
     actions[name](env, *args)
 
 @action
-def install(env, package):
-    packages = package.split()
+def install(env, value):
+    packages = value.split()
     subprocess.run(['sudo', 'chroot', env.root, 'apt-get', '-y', 'install'] +
             packages, check=True)
 
 @action
-def script(env, code):
-    code = b'set -e\n' + code.format(config=env).encode('utf8')
+def script(env, value):
+    code = b'set -e\n' + value.format(config=env).encode('utf8')
     script = os.path.join(env.root, '_script.sh')
     subprocess.run('sudo tee ' + script + ' > /dev/null', input=code,
             shell=True, check=True)
@@ -45,8 +46,9 @@ def apt_update(env):
             check=True)
 
 @action
-def copy(env, arg):
-    for line in arg.splitlines():
-        source, destination = arg.split()
-        subprocess.run('sudo', 'cp', '-r', os.path.join(env.files, source),
-                os.path.join(env.root, destination), check=True)
+def copy(env, value):
+    for line in value.splitlines():
+        source_pattern, destination = arg.split()
+        for source in iglob(source_pattern):
+            subprocess.run('sudo', 'cp', '-r', os.path.join(env.files, source),
+                    os.path.join(env.root, destination), check=True)
