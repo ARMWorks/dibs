@@ -9,15 +9,15 @@ from .action import run_action
 from .yaml import MultiDict, yaml
 
 file_dir = os.path.dirname(os.path.realpath(__file__))
-machine_dir = os.path.abspath(os.path.join(file_dir, '..', 'machine'))
+configs_dir = os.path.abspath(os.path.join(file_dir, '..', 'configs'))
 
-def defconfig(machine):
-    machine_config = os.path.join(machine_dir, machine, 'config.yaml')
-    if not os.path.exists(machine_config):
-        raise FileNotFoundError("Default configuration not found")
-    if os.path.exists('config.yaml'):
+def config(config, force=False):
+    config_file = os.path.join(configs_dir, config) + '.yaml'
+    if not os.path.exists(config_file):
+        raise FileNotFoundError("Configuration not found")
+    if not force and os.path.exists('config.yaml'):
         raise FileExistsError("Refusing to overwrite existing configuration")
-    shutil.copyfile(machine_config, 'config.yaml')
+    shutil.copyfile(config_file, 'config.yaml')
 
 def get_actions(config):
     actions = []

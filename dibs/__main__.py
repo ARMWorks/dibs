@@ -56,8 +56,8 @@ def build(args):
 
 def config(args):
     try:
-        project.defconfig(args.CONFIG)
-    except FileExistsError as e:
+        project.config(args.CONFIG, args.force)
+    except (FileExistsError, FileNotFoundError) as e:
         print(e)
 
 def shell(args):
@@ -95,6 +95,7 @@ def main():
     parser_build.set_defaults(func=build)
 
     parser_config = subparsers.add_parser('config')
+    parser_config.add_argument('-f', '--force', action='store_true')
     parser_config.add_argument('CONFIG')
     parser_config.set_defaults(func=config)
 
