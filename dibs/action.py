@@ -1,6 +1,10 @@
-from glob import iglob
 import os
+import shlex
 import subprocess
+from glob import iglob
+
+file_dir = os.path.dirname(os.path.realpath(__file__))
+machine_dir = os.path.abspath(os.path.join(file_dir, '..', 'machine'))
 
 actions = {}
 def action(fn):
@@ -48,7 +52,9 @@ def apt_update(env):
 @action
 def copy(env, value):
     for line in value.splitlines():
-        source_pattern, destination = arg.split()
+        source_pattern, destination = shlex.split(line)
+        source_pattern = os.path.join(machine_dir, env.files, source_pattern)
+        destination = os.path.join(env.root, destination.lstrip('/'))
         for source in iglob(source_pattern):
-            subprocess.run('sudo', 'cp', '-r', os.path.join(env.files, source),
-                    os.path.join(env.root, destination), check=True)
+            subprocess.run(['sudo', 'cp', '-r', source, destination],
+                    check=True)

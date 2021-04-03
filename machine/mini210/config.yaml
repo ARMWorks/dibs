@@ -5,7 +5,7 @@ config:
   arch: armhf
   suite: jessie
 
-  files: machine/mini210
+  files: mini210
   hostname: mini210
   locale: en_US.UTF-8
 
@@ -102,3 +102,9 @@ actions:
     rm -rf /usr/share/man/*
     rm -rf /usr/share/info/*
     rm -rf /usr/shre/lintian/*
+
+  copy: overlays/configuration/* /
+  copy: overlays/firstboot/* /
+  copy: overlays/tslib/* /
+
+  script: /usr/sbin/update-rc.d firstboot defaults
