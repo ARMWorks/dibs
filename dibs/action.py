@@ -2,9 +2,19 @@ import os
 import shlex
 import subprocess
 from glob import iglob
+from textwrap import indent
 
 file_dir = os.path.dirname(os.path.realpath(__file__))
 configs_dir = os.path.abspath(os.path.join(file_dir, '..', 'configs'))
+
+class ScriptException(Exception):
+    def __init__(self, message, code):
+        self.message = message
+        self.code = code
+        super().__init__(self.message)
+
+    def __str__(self):
+        return self.message + '\n' + indent(self.code, '>   ')
 
 actions = {}
 def action(fn):
@@ -38,9 +48,7 @@ def script(env, value):
         subprocess.run(['sudo', 'chroot', env.root, '/bin/bash',
                 '/_script.sh'], check=True)
     except:
-        print(value)
-        import traceback
-        traceback.print_exc()
+        raise ScriptException('Error running script', value)
     finally:
         subprocess.run(['sudo', 'rm', os.path.join(env.root, '_script.sh')],
                 check=True)

@@ -1,4 +1,5 @@
 import argparse
+from dibs.action import ScriptException
 import os
 import sys
 import subprocess
@@ -49,7 +50,7 @@ def build(args):
     try:
         env = project.get_env()
         project.build(env)
-    except FileNotFoundError as e:
+    except Exception as e:
         print(e)
 
 def config(args):

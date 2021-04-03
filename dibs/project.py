@@ -5,7 +5,7 @@ from copy import deepcopy
 from subprocess import run
 
 from . import target
-from .action import run_action
+from .action import ScriptException, run_action
 from .yaml import MultiDict, yaml
 
 file_dir = os.path.dirname(os.path.realpath(__file__))
@@ -192,17 +192,15 @@ def build(env):
         for action in actions[max(env._step - 1, 0):]:
             if isinstance(action[0], tuple):
                 action = (action[0][0], action[1])
-            try:
-                run_action(env, action)
-            except:
-                from pprint import pprint
-                pprint(action)
-                raise
+            run_action(env, action)
 
             snapshot = os.path.join(env.snapshots, str(env._step))
             run(['sudo', 'btrfs', 'subvolume', 'snapshot', env.root, snapshot],
                     check=True)
             save(env, True)
+
+    except ScriptException:
+        raise
 
     except:
         import traceback
