@@ -38,6 +38,7 @@ def script(env, value):
         subprocess.run(['sudo', 'chroot', env.root, '/bin/bash',
                 '/_script.sh'], check=True)
     except:
+        print(value)
         import traceback
         traceback.print_exc()
     finally:

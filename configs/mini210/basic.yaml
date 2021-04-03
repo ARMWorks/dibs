@@ -16,12 +16,19 @@ actions:
     #deb-src {config.mirror}/{config.distro} {config.suite} main contrib non-free
     EOF
 
-    if [[ "{{config.suite}}" != "experimental" ]]; then
+    if [[ "{config.suite}" != "experimental" ]]; then
       cat >> /etc/apt/sources.list << EOF
     deb http://security.debian.org {config.suite}/updates main contrib non-free
     #deb-src http://security.debian.org {config.suite}/updates main contrib non-free
     EOF
     fi
+
+  script: | # prevent daemons from starting
+    cat >> /usr/sbin/policy-rc.d << EOF
+    #!/bin/sh
+    exit 101
+    EOF
+    chmod 755 /usr/sbin/policy-rc.d
 
   # essential tools
   install:
@@ -74,6 +81,13 @@ actions:
     less
     vim-tiny
 
+  script: |
+    mkdir -p /etc/ssh
+    touch /etc/ssh/ssh_host_rsa_key
+    touch /etc/ssh/ssh_host_dsa_key
+    touch /etc/ssh/ssh_host_ecdsa_key
+    touch /etc/ssh/ssh_host_ed25519_key
+
   # ssh
   install:
     openssh-client
@@ -107,4 +121,11 @@ actions:
   copy: overlays/firstboot/* /
   copy: overlays/tslib/* /
 
-  script: /usr/sbin/update-rc.d firstboot defaults
+  script: | # final touches
+    rm /etc/ssh/ssh_host_rsa_key
+    rm /etc/ssh/ssh_host_dsa_key
+    rm /etc/ssh/ssh_host_ecdsa_key
+    rm /etc/ssh/ssh_host_ed25519_key
+
+    rm /usr/sbin/policy-rc.d
+    /usr/sbin/update-rc.d firstboot defaults
