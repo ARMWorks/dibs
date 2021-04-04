@@ -1,0 +1,5 @@
+include:
+  mini210/base
+
+actions:
+  copy: overlays/qt/* /

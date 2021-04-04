@@ -14,7 +14,7 @@ class ScriptException(Exception):
         super().__init__(self.message)
 
     def __str__(self):
-        return self.message + '\n' + indent(self.code, '>   ')
+        return self.message + '\n' + indent(self.code, '> ')
 
 actions = {}
 def action(fn):
@@ -28,7 +28,7 @@ def run_action(env, action):
         args = (args,)
     name = name.replace('-', '_')
     if not name in actions:
-        raise Exception('Unknown action %s' % (name,))
+        raise Exception('Unknown action ' + name)
     actions[name](env, *args)
 
 @action

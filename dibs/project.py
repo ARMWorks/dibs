@@ -1,7 +1,6 @@
 import os
 import shutil
 import sys
-from copy import deepcopy
 from subprocess import run
 
 from . import target
@@ -21,9 +20,18 @@ def config(config, force=False):
 
 def get_actions(config):
     actions = []
-    config_actions = config.get('actions', MultiDict())
-    if config_actions:
-        for action, action_data in config_actions.items():
+    actions_md = config.setdefault('actions', MultiDict())
+    if actions_md:
+        for action, action_data in actions_md.items():
+            if isinstance(action_data, str):
+                actions.append((action, action_data))
+            elif isinstance(action_data, list):
+                for entry in action_data:
+                    actions.append((action, entry))
+
+    cleanup_md = config.setdefault('cleanup', MultiDict())
+    if cleanup_md:
+        for action, action_data in cleanup_md.items():
             if isinstance(action_data, str):
                 actions.append((action, action_data))
             elif isinstance(action_data, list):
@@ -33,58 +41,82 @@ def get_actions(config):
     return actions
 
 def first_diff(env):
-    if not hasattr(env, 'previous_data') or not env.previous_data:
+    if not hasattr(env, '_last_data') or not env._last_data:
         return 0
 
-    config = env.data.get('config', MultiDict())
-    previous_config = env.previous_data.get('config', MultiDict())
+    config = env._data.get('config', MultiDict())
+    last_config = env._last_data.get('config', MultiDict())
 
     for key in ('btrfs-size', 'mirror', 'distro', 'arch', 'suite'):
-        if config.get(key) != previous_config.get(key):
+        if config.get(key) != last_config.get(key):
             return 0
 
-    if config != previous_config:
+    if config != last_config:
         return 1
 
-    actions = get_actions(env.data)
-    previous_actions = get_actions(env.previous_data)
+    actions = get_actions(env._data)
+    last_actions = get_actions(env._last_data)
 
-    zipped_actions = tuple(zip(actions, previous_actions))
+    zipped_actions = tuple(zip(actions, last_actions))
     for i, zipped_action in enumerate(zipped_actions):
-        action, previous_action = zipped_action
-        if action != previous_action:
+        action, last_action = zipped_action
+        if action != last_action:
             return i + 1
 
     return len(zipped_actions) + 1
 
-def save(env, increment_step=False):
-    config = MultiDict()
-    config['config'] = env.config
-    config['actions'] = env.actions
+def load(file):
+    if not os.path.exists(file):
+        raise FileNotFoundError('File not found: ' + file)
 
+    data = MultiDict()
+
+    with open(file) as f:
+        override_data = yaml.load(f)
+    if 'include' in override_data:
+        includes = override_data['include']
+        if isinstance(includes, str):
+            includes = includes.split()
+        for include in includes:
+            include_data = load(os.path.join(configs_dir, include + '.yaml'))
+            if 'config' in include_data:
+                for key, value in include_data['config'].items():
+                    data.setdefault('config', MultiDict())[key] = value
+            if 'actions' in include_data:
+                for key, value in include_data['actions'].items():
+                    data.setdefault('actions', MultiDict()).append(key, value)
+            if 'cleanup' in include_data:
+                for key, value in include_data['cleanup'].items():
+                    data.setdefault('cleanup', MultiDict()).append(key, value)
+
+    if 'config' in override_data:
+        for key, value in override_data['config'].items():
+            data.setdefault('config', MultiDict())[key] = value
+    if 'actions' in override_data:
+        for key, value in override_data['actions'].items():
+            data.setdefault('actions', MultiDict()).append(key, value)
+    if 'cleanup' in override_data:
+        for key, value in override_data['cleanup'].items():
+            data.setdefault('cleanup', MultiDict()).append(key, value)
+
+    return data
+
+def save(env, increment_step=False):
     if increment_step:
         env._step += 1
         env._state['step'] = env._step
-    config['state'] = env._state
+    env._data['state'] = env._state
 
     with open('.state.yaml', 'w') as f:
-        yaml.dump(config, f)
+        yaml.dump(env._data, f)
 
 def get_env():
     class Env(object):
         pass
     env = Env()
-    env._state = MultiDict()
+    env._data = load('config.yaml')
 
-    if not os.path.exists('config.yaml'):
-        raise FileNotFoundError('Configuration file not found')
-    with open('config.yaml') as f:
-        env.data = yaml.load(f)
-
-    env.config = env.data['config']
-    env.actions = env.data['actions']
-
-    for key, value in env.config.items():
+    for key, value in env._data['config'].items():
         key = key.replace('-', '_')
         setattr(env, key, value)
 
@@ -101,12 +133,12 @@ def get_env():
 
     if os.path.exists('.state.yaml'):
         with open('.state.yaml') as f:
-            env.previous_data = yaml.load(f)
+            env._last_data = yaml.load(f)
 
     env._diff = first_diff(env)
     if not os.path.exists(env.btrfs_image):
         env._diff = 0
-    env._state = MultiDict() if env._diff == 0 else env.previous_data['state']
+    env._state = MultiDict() if env._diff == 0 else env._last_data['state']
     env._step = env._state.get('step', 0)
     if env._step == 0:
         env._diff = 0
@@ -114,7 +146,7 @@ def get_env():
     return env
 
 def build(env):
-    actions = get_actions(env.data)
+    actions = get_actions(env._data)
     if not env._diff == 0 and len(actions) == env._step - 1 and \
             env._step == env._diff:
         print('Nothing to do!', file=sys.stderr)
@@ -135,8 +167,8 @@ def build(env):
             os.remove(env.btrfs_image)
         save(env)
 
-        run(['dd', 'if=/dev/null', 'of=%s' % (env.btrfs_image,), 'bs=1',
-                'seek=%s' % (env.btrfs_size,)], check=True)
+        run(['dd', 'if=/dev/null', 'of=' + env.btrfs_image, 'bs=1',
+                'seek=' + env.btrfs_size], check=True)
         run(['mkfs.btrfs', '-f', env.btrfs_image], check=True)
 
     try:
@@ -172,11 +204,11 @@ def build(env):
             removed_keys = \
                     '/usr/share/keyrings/debian-archive-removed-keys.gpg'
             if os.path.exists(removed_keys):
-                args.append('--keyring=%s' % (removed_keys,))
+                args.append('--keyring=' + removed_keys)
 
             run(['sudo', 'debootstrap', '--variant=minbase',
-                    '--arch=%s' % (env.arch,)] + args + [env.suite,
-                    env.root, '%s/%s' % (env.mirror, env.distro)],
+                    '--arch=' + env.arch] + args + [env.suite,
+                    env.root, env.mirror + '/' + env.distro],
                     check=True)
 
             snapshot = os.path.join(env.snapshots, str(env._step))

@@ -1,0 +1,18 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          tscal_check
+# Required-Start:    $all
+# Required-Stop:
+# X-Start-Before:
+# Default-Start:     S
+# Default-Stop:
+# Short-Description: Check for TSLib calibration.
+### END INIT INFO
+
+PTRCAL=/etc/pointercal
+. /etc/profile
+. /etc/ts.conf
+
+if [ ! -f $PTRCAL ]; then
+    /usr/bin/ts_calibrate &
+fi

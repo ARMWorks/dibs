@@ -49,8 +49,9 @@ def build(args):
     try:
         env = project.get_env()
         project.build(env)
-    except Exception as e:
-        print(e)
+    except Exception:
+        import traceback
+        traceback.print_exc()
 
 def config(args):
     try:
