@@ -160,18 +160,18 @@ def build(env):
         env._state['btrfs_mounted'] = False
     save(env)
 
-    if env._diff == 0:
-        env._state = MultiDict()
-        env._step = 0
-        if os.path.exists(env.btrfs_image):
-            os.remove(env.btrfs_image)
-        save(env)
-
-        run(['dd', 'if=/dev/null', 'of=' + env.btrfs_image, 'bs=1',
-                'seek=' + env.btrfs_size], check=True)
-        run(['mkfs.btrfs', '-f', env.btrfs_image], check=True)
-
     try:
+        if env._diff == 0:
+            env._state = MultiDict()
+            env._step = 0
+            if os.path.exists(env.btrfs_image):
+                os.remove(env.btrfs_image)
+            save(env)
+
+            run(['dd', 'if=/dev/null', 'of=' + env.btrfs_image, 'bs=1',
+                    'seek=' + env.btrfs_size], check=True)
+            run(['mkfs.btrfs', '-f', env.btrfs_image], check=True)
+
         if not env._state.get('btrfs_mounted'):
             target.mount_btrfs(env)
             env._state['btrfs_mounted'] = True
@@ -233,10 +233,6 @@ def build(env):
 
     except ScriptException:
         raise
-
-    except:
-        import traceback
-        traceback.print_exc()
 
     finally:
         if env._state.get('extra_mounted'):

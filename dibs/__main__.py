@@ -49,9 +49,10 @@ def build(args):
     try:
         env = project.get_env()
         project.build(env)
+    except ScriptException as e:
+        print(e)
     except Exception:
-        import traceback
-        traceback.print_exc()
+        raise
 
 def config(args):
     try:
@@ -70,8 +71,7 @@ def shell(args):
     try:
         subprocess.run(['sudo', 'chroot', env.root, '/bin/bash'])
     except:
-        import traceback
-        traceback.print_exc()
+        raise
     finally:
         if not skip_mount:
             target.unmount_extra(env)
