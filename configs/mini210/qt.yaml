@@ -2,4 +2,32 @@ include:
   mini210/base
 
 actions:
+  install:
+    libmysqlclient18
+    libasound2
+    alsa-utils
+    libpulse0
+    libpng12-0
+    libproxy1
+    libglib2.0-0
+    libfontconfig1
+    libgstreamer1.0-0
+    libgstreamer-plugins-base1.0-0
+    gstreamer1.0-plugins-good
+    libcups2
+
+  download:
+    url: https://github.com/ARMWorks/Qt5.6.1_armhfcc/archive/master.zip
+    file: qt5-armhfcc.zip
+
+  host script: |
+    if [ -f {config.configs}/{config.files}/overlays/qt/qt5arm.tar.gz ]; then
+      exit
+    fi
+    unzip -qo {config.downloads}/qt5-armhfcc.zip Qt5.6.1_armhfcc-master/qt5arm/* -d /tmp/qt5
+    rm -r /tmp/qt5/Qt5.6.1_armhfcc-master/qt5arm/include
+    rm -r /tmp/qt5/Qt5.6.1_armhfcc-master/qt5arm/doc
+    tar --transform "s#tmp/qt5/Qt5.6.1_armhfcc-master#usr/local#" -czf {config.configs}/{config.files}/overlays/qt/qt5arm.tar.gz /tmp/qt5/Qt5.6.1_armhfcc-master/qt5arm
+    rm -r /tmp/qt5
+
   copy: overlays/qt/* /

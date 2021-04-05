@@ -10,10 +10,17 @@
 ### END INIT INFO
 
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+QT5ARM=/qt5arm.tar.gz
 
 test "$1" = "start" || exit 0
 
 test -f /boot/firstboot.txt && . /boot/firstboot.txt
+
+if [ -f $QT5ARM ]; then
+    tar -xzf $QT5ARM -C /
+    ldconfig
+    rm $QT5ARM
+fi
 
 dpkg-reconfigure openssh-server
 update-rc.d firstboot disable

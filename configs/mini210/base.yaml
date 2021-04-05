@@ -23,7 +23,7 @@ actions:
     EOF
     fi
 
-  script: | # prevent daemons from starting
+  script: | # prevent daemons from starting with policy
     cat >> /usr/sbin/policy-rc.d << EOF
     #!/bin/sh
     exit 101
@@ -103,11 +103,6 @@ actions:
   copy: overlays/firstboot/* /
   copy: overlays/tslib/* /
 
-  script: | # final touches
-    rm /usr/sbin/policy-rc.d
-    /usr/sbin/update-rc.d firstboot defaults
-    /usr/sbin/update-rc.d tscal_check defaults
-
 cleanup:
   script: | # shrinking
     rm -rf /var/lib/apt/lists
@@ -128,3 +123,8 @@ cleanup:
     rm -rf /usr/share/man/*
     rm -rf /usr/share/info/*
     rm -rf /usr/shre/lintian/*
+
+  script: | # final touches
+    /usr/sbin/update-rc.d firstboot defaults
+    /usr/sbin/update-rc.d tscal_check defaults
+    rm /usr/sbin/policy-rc.d

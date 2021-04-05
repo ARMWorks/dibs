@@ -24,22 +24,20 @@ def action(fn):
 
 def run_action(env, action):
     name, args = action
-    if isinstance(args, str):
-        args = (args,)
-    name = name.replace('-', '_')
+    name = name.translate({32: 95, 45: 95}) # change ' ' and '-' to '_'
     if not name in actions:
         raise Exception('Unknown action ' + name)
-    actions[name](env, *args)
+    actions[name](env, args)
 
 @action
-def install(env, value):
-    packages = value.split()
+def install(env, args):
+    packages = args.split()
     subprocess.run(['sudo', 'chroot', env.root, 'apt-get', '-y', 'install'] +
             packages, check=True)
 
 @action
-def script(env, value):
-    code = b'set -e\n' + value.format(config=env).encode('utf8')
+def target_script(env, args):
+    code = b'set -e\n' + args.format(config=env).encode('utf8')
     script = os.path.join(env.root, '_script.sh')
     subprocess.run('sudo tee ' + script + ' > /dev/null', input=code,
             shell=True, check=True)
@@ -48,10 +46,14 @@ def script(env, value):
         subprocess.run(['sudo', 'chroot', env.root, '/bin/bash',
                 '/_script.sh'], check=True)
     except:
-        raise ScriptException('Error running script', value)
+        raise ScriptException('Error running script', args)
     finally:
         subprocess.run(['sudo', 'rm', os.path.join(env.root, '_script.sh')],
                 check=True)
+
+@action
+def script(env, args):
+    target_script(env, args)
 
 @action
 def apt_update(env):
@@ -59,11 +61,32 @@ def apt_update(env):
             check=True)
 
 @action
-def copy(env, value):
-    for line in value.splitlines():
+def copy(env, args):
+    for line in args.splitlines():
         source_pattern, destination = shlex.split(line)
         source_pattern = os.path.join(configs_dir, env.files, source_pattern)
         destination = os.path.join(env.root, destination.lstrip('/'))
         for source in iglob(source_pattern):
             subprocess.run(['sudo', 'cp', '-r', source, destination],
                     check=True)
+
+@action
+def download(env, args):
+    download = os.path.join(env.downloads, args['file'])
+    if not os.path.exists(download):
+        subprocess.run(['mkdir', '-p', env.downloads], check=True)
+        subprocess.run(['wget', args['url'], '-O', download], check=True)
+
+@action
+def host_script(env, args):
+    code = b'set -e\n' + args.format(config=env).encode('utf8')
+    script = '/tmp/_script.sh'
+    subprocess.run('sudo tee ' + script + ' > /dev/null', input=code,
+            shell=True, check=True)
+
+    try:
+        subprocess.run(['sudo', '/bin/bash', script], check=True)
+    except:
+        raise ScriptException('Error running script', args)
+    finally:
+        subprocess.run(['sudo', 'rm', script], check=True)

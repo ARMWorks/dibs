@@ -23,20 +23,12 @@ def get_actions(config):
     actions_md = config.setdefault('actions', MultiDict())
     if actions_md:
         for action, action_data in actions_md.items():
-            if isinstance(action_data, str):
-                actions.append((action, action_data))
-            elif isinstance(action_data, list):
-                for entry in action_data:
-                    actions.append((action, entry))
+            actions.append((action, action_data))
 
     cleanup_md = config.setdefault('cleanup', MultiDict())
     if cleanup_md:
         for action, action_data in cleanup_md.items():
-            if isinstance(action_data, str):
-                actions.append((action, action_data))
-            elif isinstance(action_data, list):
-                for entry in action_data:
-                    actions.append((action, entry))
+            actions.append((action, action_data))
 
     return actions
 
@@ -120,12 +112,16 @@ def get_env():
         key = key.replace('-', '_')
         setattr(env, key, value)
 
-    env.btrfs_image = 'btrfs.img'
-    env.btrfs = 'btrfs'
+    env.configs = configs_dir
+    env.project = os.path.abspath('.')
+    env.btrfs_image = os.path.join(env.project, 'btrfs.img')
+    env.btrfs = os.path.join(env.project, 'btrfs')
     env.root = os.path.join(env.btrfs, 'root')
     env.oldroot = os.path.join(env.btrfs, 'oldroot')
     env.snapshots = os.path.join(env.btrfs, 'snapshots')
-    env.cache = os.path.join('.cache', env.distro, env.arch, env.suite)
+    env.cache = os.path.join(env.project, '.cache')
+    env.packages = os.path.join(env.cache, env.distro, env.arch, env.suite)
+    env.downloads = os.path.join(env.project, '.cache/downloads')
     env.archives = os.path.join(env.root, 'var/cache/apt/archives')
     env.procfs = os.path.join(env.root, 'proc')
     env.sysfs = os.path.join(env.root, 'sys')
