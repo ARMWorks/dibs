@@ -2,10 +2,10 @@
 
 DIBS is intended to build reproducable Debian images for embedded systems. It
 allows for configuration and customization of the resulting system. While
-building an image, it uses btrfs to take snapshots, allowing you to roll back
-changes while developing and testing your image.
+building an image, it uses btrfs to take snapshots, allowing automatic
+roll-back while developing and testing your image.
 
-## Requirements
+## Host Requirements
 
   * btrfs-progs
   * debootstrap
