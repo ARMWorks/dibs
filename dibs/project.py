@@ -16,7 +16,8 @@ def config(config, force=False):
         raise FileNotFoundError("Configuration not found")
     if not force and os.path.exists('config.yaml'):
         raise FileExistsError("Refusing to overwrite existing configuration")
-    shutil.copyfile(config_file, 'config.yaml')
+    with open('config.yaml', 'w') as f:
+        f.write('include:\n  ' + config + '\n')
 
 def get_actions(config):
     actions = []

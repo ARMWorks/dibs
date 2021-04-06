@@ -52,13 +52,22 @@ def target_script(env, args):
                 check=True)
 
 @action
-def script(env, args):
-    target_script(env, args)
+def host_script(env, args):
+    code = b'set -e\n' + args.format(config=env).encode('utf8')
+    script = '/tmp/_script.sh'
+    subprocess.run('sudo tee ' + script + ' > /dev/null', input=code,
+            shell=True, check=True)
+
+    try:
+        subprocess.run(['sudo', '/bin/bash', script], check=True)
+    except:
+        raise ScriptException('Error running script', args)
+    finally:
+        subprocess.run(['sudo', 'rm', script], check=True)
 
 @action
-def apt_update(env):
-    subprocess.run(['sudo', 'chroot', env.root, 'apt-get', 'update'],
-            check=True)
+def script(env, args):
+    target_script(env, args)
 
 @action
 def copy(env, args):
@@ -76,17 +85,3 @@ def download(env, args):
     if not os.path.exists(download):
         subprocess.run(['mkdir', '-p', env.downloads], check=True)
         subprocess.run(['wget', args['url'], '-O', download], check=True)
-
-@action
-def host_script(env, args):
-    code = b'set -e\n' + args.format(config=env).encode('utf8')
-    script = '/tmp/_script.sh'
-    subprocess.run('sudo tee ' + script + ' > /dev/null', input=code,
-            shell=True, check=True)
-
-    try:
-        subprocess.run(['sudo', '/bin/bash', script], check=True)
-    except:
-        raise ScriptException('Error running script', args)
-    finally:
-        subprocess.run(['sudo', 'rm', script], check=True)
