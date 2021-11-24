@@ -167,7 +167,7 @@ def build(env):
 
             run(['dd', 'if=/dev/null', 'of=' + env.btrfs_image, 'bs=1',
                     'seek=' + env.btrfs_size], check=True)
-            run(['mkfs.btrfs', '-f', env.btrfs_image], check=True)
+            run(['/sbin/mkfs.btrfs', '-f', env.btrfs_image], check=True)
 
         if not env._state.get('btrfs_mounted'):
             target.mount_btrfs(env)
@@ -198,10 +198,11 @@ def build(env):
 
         if env._step == 0:
             args = []
-            removed_keys = \
-                    '/usr/share/keyrings/debian-archive-removed-keys.gpg'
-            if os.path.exists(removed_keys):
-                args.append('--keyring=' + removed_keys)
+            # this is needed if you are building an older rootfs 
+            #removed_keys = \
+            #        '/usr/share/keyrings/debian-archive-removed-keys.gpg'
+            #if os.path.exists(removed_keys):
+            #    args.append('--keyring=' + removed_keys)
 
             run(['sudo', 'debootstrap', '--variant=minbase',
                     '--arch=' + env.arch] + args + [env.suite,
