@@ -1,0 +1,12 @@
+#!/bin/sh
+
+test -f /boot/firstboot.txt && source /boot/firstboot.txt
+
+QT5ARM=/qt5arm.tar.gz
+if [ -f $QT5ARM ]; then
+    tar -xzf $QT5ARM -C /
+    ldconfig
+    rm $QT5ARM
+fi
+
+dpkg-reconfigure openssh-server

@@ -1,0 +1,20 @@
+[Unit]
+Description=First boot configuration
+DefaultDependencies=no
+Conflicts=shutdown.target
+After=systemd-remount-fs.service
+Before=sysinit.target shutdown.target
+ConditionPathIsReadWrite=/etc
+ConditionPathExists=!/etc/machine-id
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/firstboot
+ExecStart=/usr/bin/systemd-machine-id-setup
+StandardOutput=tty
+StandardInput=tty
+StandardError=tty
+
+[Install]
+WantedBy=sysinit.target

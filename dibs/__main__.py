@@ -92,6 +92,7 @@ def copy(args):
     args.DEST = os.path.abspath(args.DEST)
     try:
         os.chdir(env.root)
+        subprocess.run(['sudo', 'mkdir', '-p', args.DEST])
         subprocess.run(['sudo', 'cp', '-rpx', '.', args.DEST])
         subprocess.run(['sudo', 'sync'])
         subprocess.run(['sudo', 'sync'])

@@ -30,28 +30,43 @@ actions:
     EOF
     chmod 755 /usr/sbin/policy-rc.d
 
-  # essential packages
-  install:
-    kmod
-    libpam-elogind
-    locales
-    sysvinit-core
+  # init system selection
+  # =====================
 
+  # sysvinit
+  # --------
+  # install:
+  #   orphan-sysvinit-scripts
+  #   sysvinit-core
+  #   sysv-rc
+
+  # openrc
+  # ------
+  # install:
+  #   openrc
+  #   sysvinit-core
+
+  # script: | # allow root logins on ttySAC0 (only needed for sysvinit/openrc)
+  #   echo ttySAC0 >> /etc/securetty
+
+  # systemd
+  # -------
+  install:
+    libpam-systemd
+  script: | # enable ttySAC0
+    systemctl enable getty@ttySAC0.service
+
+  # locales
+  # =======
+  install:
+    locales
   script: | # set and generate locale
     sed -i 's/^\([^#].*\)$/# \1/' /etc/locale.gen
     sed -i 's/^# \({config.locale}\b.*\)$/\1/' /etc/locale.gen
     locale-gen
 
-  script: | # set empty root password
-    sed -i 's/\(root:\)[^:]*\(:\)/\1\2/' /etc/shadow
-
-  script: | # allow root to login on ttySAC0
-    cat >> /etc/securetty << EOF
-
-    ttySAC0
-    EOF
-
   # networking
+  # ==========
   install:
     dnsutils
     ifupdown
@@ -73,16 +88,23 @@ actions:
     ff02::2 ip6-allrouters
     EOF
 
-  # partition and fileystem tools
+  # essential tools
+  # ===============
   install:
     dosfstools
+    kmod
     parted
 
   # utilities
+  # =========
   install:
     less
-    openssh-client
     vim-tiny
+
+  # ssh
+  # ===
+  install:
+    openssh-client
 
   script: | # install openss-server without generating host keys
     mkdir -p /etc/ssh
@@ -101,8 +123,16 @@ actions:
     sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/g' /etc/ssh/sshd_config
     sed -i 's/UsePAM yes/UsePAM no/g' /etc/ssh/sshd_config
 
+  script: | # set an empty root password
+    sed -i 's/\(root:\)[^:]*\(:\)/\1\2/' /etc/shadow
+
   copy: overlays/configuration/* /
   copy: overlays/firstboot/* /
+
+  script: | # enable firstboot
+    rm /etc/machine-id
+    /usr/sbin/update-rc.d firstboot defaults
+    systemctl enable firstboot.service
 
 cleanup:
   script: | # shrinking
@@ -126,5 +156,4 @@ cleanup:
     rm -rf /usr/shre/lintian/*
 
   script: | # final touches
-    /usr/sbin/update-rc.d firstboot defaults
     rm /usr/sbin/policy-rc.d
