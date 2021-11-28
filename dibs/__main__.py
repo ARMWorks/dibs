@@ -1,7 +1,8 @@
 import argparse
+import os
 import subprocess
 import sys
-import os
+import time
 
 import dibs.project as project
 import dibs.target as target
@@ -82,6 +83,7 @@ def shell(args):
 def copy(args):
     env = project.get_env()
 
+    initial_dir = os.getcwd()
     skip_mount = env._state.get('btrfs_mounted')
     if not skip_mount:
         target.mount_btrfs(env)
@@ -92,9 +94,11 @@ def copy(args):
         os.chdir(env.root)
         subprocess.run(['sudo', 'cp', '-rpx', '.', args.DEST])
         subprocess.run(['sudo', 'sync'])
+        subprocess.run(['sudo', 'sync'])
     except:
         raise
     finally:
+        os.chdir(initial_dir)
         if not skip_mount:
             target.unmount_extra(env)
             target.unmount_btrfs(env)
