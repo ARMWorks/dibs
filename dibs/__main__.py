@@ -1,10 +1,12 @@
 import argparse
-from dibs.action import ScriptException
-import sys
 import subprocess
+import sys
+import os
 
 import dibs.project as project
 import dibs.target as target
+from dibs.action import ScriptException
+
 
 def mount(args):
     env = project.get_env()
@@ -77,6 +79,26 @@ def shell(args):
             target.unmount_extra(env)
             target.unmount_btrfs(env)
 
+def copy(args):
+    env = project.get_env()
+
+    skip_mount = env._state.get('btrfs_mounted')
+    if not skip_mount:
+        target.mount_btrfs(env)
+        target.mount_extra(env)
+
+    args.DEST = os.path.abspath(args.DEST)
+    try:
+        os.chdir(env.root)
+        subprocess.run(['sudo', 'cp', '-rpx', '.', args.DEST])
+        subprocess.run(['sudo', 'sync'])
+    except:
+        raise
+    finally:
+        if not skip_mount:
+            target.unmount_extra(env)
+            target.unmount_btrfs(env)
+
 def main():
     parser = argparse.ArgumentParser(description='Debian Image Build System')
     subparsers = parser.add_subparsers(title='subcommands',
@@ -100,6 +122,10 @@ def main():
 
     parser_shell = subparsers.add_parser('shell')
     parser_shell.set_defaults(func=shell)
+
+    parser_copy = subparsers.add_parser('copy')
+    parser_copy.add_argument('DEST')
+    parser_copy.set_defaults(func=copy)
 
     args = parser.parse_args()
     if hasattr(args, 'func'):

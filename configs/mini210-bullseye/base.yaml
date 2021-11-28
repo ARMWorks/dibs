@@ -5,7 +5,7 @@ config:
   arch: armhf
   suite: bullseye
 
-  files: mini210
+  files: mini210-bullseye
   hostname: mini210
   locale: en_US.UTF-8
 
@@ -33,7 +33,9 @@ actions:
   # essential packages
   install:
     kmod
+    libpam-elogind
     locales
+    sysvinit-core
 
   script: | # set and generate locale
     sed -i 's/^\([^#].*\)$/# \1/' /etc/locale.gen
@@ -125,5 +127,4 @@ cleanup:
 
   script: | # final touches
     /usr/sbin/update-rc.d firstboot defaults
-    /usr/sbin/update-rc.d tscal_check defaults
     rm /usr/sbin/policy-rc.d

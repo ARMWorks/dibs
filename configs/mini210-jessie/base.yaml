@@ -5,7 +5,7 @@ config:
   arch: armhf
   suite: jessie
 
-  files: mini210
+  files: mini210-jessie
   hostname: mini210
   locale: en_US.UTF-8
 
