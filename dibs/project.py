@@ -167,7 +167,7 @@ def build(env):
 
             run(['dd', 'if=/dev/null', 'of=' + env.btrfs_image, 'bs=1',
                     'seek=' + env.btrfs_size], check=True)
-            run(['/sbin/mkfs.btrfs', '-f', env.btrfs_image], check=True)
+            run(['/sbin/mkfs', '-t', 'btrfs', '-f', env.btrfs_image], check=True)
 
         if not env._state.get('btrfs_mounted'):
             target.mount_btrfs(env)
