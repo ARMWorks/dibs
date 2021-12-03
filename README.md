@@ -34,3 +34,5 @@ Commands:
 ```path/to/dibs.py unmount [-f]```
 
 ```path/to/dibs.py shell```
+
+```path/to/dibs.py copy DEST```
