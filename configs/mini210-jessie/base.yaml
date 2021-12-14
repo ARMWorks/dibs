@@ -2,6 +2,7 @@ config:
   btrfs-size: 1G
   mirror: http://mirrors.kernel.org
   distro: debian
+  variant: minbase
   arch: armhf
   suite: jessie
 

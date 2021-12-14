@@ -14,7 +14,7 @@ def mount(args):
 
     if not args.force:
         if env._state.get('btrfs_mounted'):
-                print ('aldready mounted, try -f')
+                print ('already mounted, try -f')
                 return
     check = not args.force
 

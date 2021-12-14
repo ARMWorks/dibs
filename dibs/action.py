@@ -37,7 +37,8 @@ def install(env, args):
 
 @action
 def target_script(env, args):
-    code = b'set -e\n' + args.format(config=env).encode('utf8')
+    args = args.format(config=env)
+    code = b'set -e\n' + args.encode('utf8')
     script = os.path.join(env.root, '_script.sh')
     subprocess.run('sudo tee ' + script + ' > /dev/null', input=code,
             shell=True, check=True)
@@ -53,7 +54,8 @@ def target_script(env, args):
 
 @action
 def host_script(env, args):
-    code = b'set -e\n' + args.format(config=env).encode('utf8')
+    args = args.format(config=env)
+    code = b'set -e\n' + args.encode('utf8')
     script = '/tmp/_script.sh'
     subprocess.run('sudo tee ' + script + ' > /dev/null', input=code,
             shell=True, check=True)

@@ -2,9 +2,9 @@ config:
   btrfs-size: 2G
   mirror: http://mirrors.kernel.org
   distro: debian
+  variant: minbase
   arch: armhf
   suite: bullseye
-
   files: mini210-bullseye
   hostname: mini210
   locale: en_US.UTF-8

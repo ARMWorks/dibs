@@ -73,8 +73,28 @@ def load(file):
         for include in includes:
             include_data = load(os.path.join(configs_dir, include + '.yaml'))
             if 'config' in include_data:
+                config = data.setdefault('config', MultiDict())
                 for key, value in include_data['config'].items():
-                    data.setdefault('config', MultiDict())[key] = value
+                    if key == 'include':
+                        config.setdefault('include', set())
+                        if isinstance(value, str):
+                            value = value.split()
+                        for package in value:
+                            if package.startswith('-'):
+                                config['include'].remove(package[1:])
+                            else:
+                                config['include'].add(package)
+                    elif key == 'exclude':
+                        config.setdefault('exclude', set())
+                        if isinstance(value, str):
+                            value = value.split()
+                        for package in value:
+                            if package.startswith('-'):
+                                config['exclude'].remove(package[1:])
+                            else:
+                                config['exclude'].add(package)
+                    else:
+                        config[key] = value
             if 'actions' in include_data:
                 for key, value in include_data['actions'].items():
                     data.setdefault('actions', MultiDict()).append(key, value)
@@ -83,11 +103,33 @@ def load(file):
                     data.setdefault('cleanup', MultiDict()).append(key, value)
 
     if 'config' in override_data:
+        config = data.setdefault('config', MultiDict())
         for key, value in override_data['config'].items():
-            data.setdefault('config', MultiDict())[key] = value
+            if key == 'include':
+                config.setdefault('include', set())
+                if isinstance(value, str):
+                    value = value.split()
+                for package in value:
+                    if package.startswith('-'):
+                        config['include'].remove(package[1:])
+                    else:
+                        config['include'].add(package)
+            elif key == 'exclude':
+                config.setdefault('exclude', set())
+                if isinstance(value, str):
+                    value = value.split()
+                for package in value:
+                    if package.startswith('-'):
+                        config['exclude'].remove(package[1:])
+                    else:
+                        config['exclude'].add(package)
+            else:
+                config[key] = value
+
     if 'actions' in override_data:
         for key, value in override_data['actions'].items():
             data.setdefault('actions', MultiDict()).append(key, value)
+
     if 'cleanup' in override_data:
         for key, value in override_data['cleanup'].items():
             data.setdefault('cleanup', MultiDict()).append(key, value)
@@ -158,6 +200,8 @@ def build(env):
     save(env)
 
     try:
+        os.environ['PATH'] = '/sbin:' + os.environ['PATH']
+
         if env._diff == 0:
             env._state = MultiDict()
             env._step = 0
@@ -167,7 +211,8 @@ def build(env):
 
             run(['dd', 'if=/dev/null', 'of=' + env.btrfs_image, 'bs=1',
                     'seek=' + env.btrfs_size], check=True)
-            run(['/sbin/mkfs', '-t', 'btrfs', '-f', env.btrfs_image], check=True)
+            run(['mkfs', '-t', 'btrfs', '-f', env.btrfs_image], check=True,
+                    env=os.environ)
 
         if not env._state.get('btrfs_mounted'):
             target.mount_btrfs(env)
@@ -197,17 +242,25 @@ def build(env):
             save(env, True)
 
         if env._step == 0:
-            args = []
-            # this is needed if you are building an older rootfs 
+            if hasattr(env, 'pre-debootstrap'):
+                run_action(env, ('host-script', env.pre_debootstrap))
+
+            debootstrap_args = []
+            # this is needed if you are building an older rootfs
             #removed_keys = \
             #        '/usr/share/keyrings/debian-archive-removed-keys.gpg'
             #if os.path.exists(removed_keys):
-            #    args.append('--keyring=' + removed_keys)
+            #    debootstrap_args.append('--keyring=' + removed_keys)
 
-            run(['sudo', 'debootstrap', '--variant=minbase',
-                    '--arch=' + env.arch] + args + [env.suite,
-                    env.root, env.mirror + '/' + env.distro],
-                    check=True)
+            if hasattr(env, 'include'):
+                debootstrap_args.append('--include=' + ','.join(env.include))
+
+            if hasattr(env, 'exclude'):
+                debootstrap_args.append('--exclude=' + ','.join(env.exclude))
+
+            run(['sudo', 'debootstrap', '--variant=' + env.variant,
+                    '--arch=' + env.arch] + debootstrap_args + [env.suite,
+                    env.root, env.mirror + '/' + env.distro], check=True)
 
             snapshot = os.path.join(env.snapshots, str(env._step))
             run(['sudo', 'btrfs', 'subvolume', 'snapshot', env.root, snapshot],
