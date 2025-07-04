@@ -1,0 +1,5 @@
+#!/bin/sh
+
+test -f /boot/firstboot.txt && source /boot/firstboot.txt
+
+dpkg-reconfigure openssh-server

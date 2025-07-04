@@ -1,0 +1,159 @@
+config:
+  btrfs-size: 2G
+  mirror: http://mirrors.kernel.org
+  distro: debian
+  variant: minbase
+  arch: arm64
+  suite: trixie
+  files: s5p6818-trixie
+  hostname: s5pv6818
+  locale: en_US.UTF-8
+
+actions:
+  script: | # setup apt sources
+    cat > /etc/apt/sources.list << EOF
+    deb {config.mirror}/{config.distro} {config.suite} main contrib non-free non-free-firmware
+    #deb-src {config.mirror}/{config.distro} {config.suite} main contrib non-free non-free-firmware
+    EOF
+
+    if [[ "{config.suite}" != "experimental" ]]; then
+      cat >> /etc/apt/sources.list << EOF
+    deb http://security.debian.org {config.suite}-updates main contrib non-free non-free-firmware
+    #deb-src http://security.debian.org {config.suite}-updates main contrib non-free non-free-firmware
+    EOF
+    fi
+
+  script: | # prevent daemons from starting with policy
+    cat >> /usr/sbin/policy-rc.d << EOF
+    #!/bin/sh
+    exit 101
+    EOF
+    chmod 755 /usr/sbin/policy-rc.d
+
+  # init system selection
+  # =====================
+
+  # sysvinit
+  # --------
+  # install:
+  #   orphan-sysvinit-scripts
+  #   sysvinit-core
+  #   sysv-rc
+
+  # openrc
+  # ------
+  # install:
+  #   openrc
+  #   sysvinit-core
+
+  # script: | # allow root logins on ttySAC0 (only needed for sysvinit/openrc)
+  #   echo ttySAC0 >> /etc/securetty
+
+  # systemd
+  # -------
+  install:
+    libpam-systemd
+  script: | # enable ttySAC0
+    systemctl enable getty@ttySAC0.service
+
+  # locales
+  # =======
+  install:
+    locales
+  script: | # set and generate locale
+    sed -i 's/^\([^#].*\)$/# \1/' /etc/locale.gen
+    sed -i 's/^# \({config.locale}\b.*\)$/\1/' /etc/locale.gen
+    locale-gen
+
+  # networking
+  # ==========
+  install:
+    dnsutils
+    ifupdown
+    iputils-ping
+    isc-dhcp-client
+    net-tools
+
+  script: | # set hostname
+    echo {config.hostname} > /etc/hostname
+    cat > /etc/hosts << EOF
+    127.0.0.1       localhost
+    127.0.1.1       {config.hostname}
+
+    # The following lines are desirable for IPv6 capable hosts
+    ::1     ip6-localhost ip6-loopback
+    fe00::0 ip6-localnet
+    ff00::0 ip6-mcastprefix
+    ff02::1 ip6-allnodes
+    ff02::2 ip6-allrouters
+    EOF
+
+  # essential tools
+  # ===============
+  install:
+    dosfstools
+    kmod
+    parted
+
+  # utilities
+  # =========
+  install:
+    less
+    vim-tiny
+
+  # ssh
+  # ===
+  install:
+    openssh-client
+
+  script: | # install openss-server without generating host keys
+    mkdir -p /etc/ssh
+    touch /etc/ssh/ssh_host_rsa_key
+    touch /etc/ssh/ssh_host_dsa_key
+    touch /etc/ssh/ssh_host_ecdsa_key
+    touch /etc/ssh/ssh_host_ed25519_key
+    apt-get -y install openssh-server
+    rm /etc/ssh/ssh_host_rsa_key
+    rm /etc/ssh/ssh_host_dsa_key
+    rm /etc/ssh/ssh_host_ecdsa_key
+    rm /etc/ssh/ssh_host_ed25519_key
+
+  script: | # allow passwordless root logins on ssh
+    sed -i 's/PermitEmptyPasswords no/PermitEmptyPasswords yes/g' /etc/ssh/sshd_config
+    sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/g' /etc/ssh/sshd_config
+    sed -i 's/UsePAM yes/UsePAM no/g' /etc/ssh/sshd_config
+
+  script: | # set an empty root password
+    sed -i 's/\(root:\)[^:]*\(:\)/\1\2/' /etc/shadow
+
+  copy: overlays/configuration/* /
+  copy: overlays/firstboot/* /
+
+  script: | # enable firstboot
+    rm /etc/machine-id
+    /usr/sbin/update-rc.d firstboot defaults
+    systemctl enable firstboot.service
+
+cleanup:
+  script: | # shrinking
+    rm -rf /var/lib/apt/lists
+    rm -rf /var/log
+
+    if [[ -n "{config.locale}" ]]; then
+      lang=$(echo {config.locale} | sed 's/^\([^_]\+\)\(_.\+\)\?$/\1/')
+      if [[ -d "/usr/share/locale" ]]; then
+        (cd "/usr/share/locale";
+          find . -maxdepth 1 ! -name $lang -a ! -name "$lang*" -a ! -name "." -type d -exec rm -r "{{}}" \;)
+      fi
+    else
+      rm -r /usr/share/locale/*
+    fi
+
+    find /usr/share/doc ! -name copyright -type f -delete
+    find /usr/share/doc -type d -o -type l -delete > /dev/null 2>&1
+    rm -rf /usr/share/man/*
+    rm -rf /usr/share/info/*
+    rm -rf /usr/shre/lintian/*
+
+  script: | # final touches
+    rm /usr/sbin/policy-rc.d
