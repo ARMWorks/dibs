@@ -13,14 +13,26 @@ def unmount_btrfs(env, check=True):
 
 def mount_extra(env, check=True):
     run(['sudo', 'mkdir', '-p', env.procfs, env.sysfs, env.archives, env.usr_bin], check=check)
-    qemu = 'qemu-%s-static' % ('arm' if env.arch in ('armhf', 'armel') else env.arch,)
+    if env.arch == 'arm64':
+        qemu_arch = 'aarch64'
+    elif env.arch in ('armhf', 'armel'):
+        qemu_arch = 'arm'
+    else:
+        qemu_arch = env.arch
+    qemu = 'qemu-%s-static' % (qemu_arch,)
     run(['sudo', 'cp', os.path.join('/usr/bin', qemu), env.usr_bin], check=check)
     run(['sudo', 'mount', '-t', 'proc', 'proc', env.procfs], check=check)
     run(['sudo', 'mount', '-t', 'sysfs', 'sysfs', env.sysfs], check=check)
     run(['sudo', 'mount', '--bind', env.packages, env.archives], check=check)
 
 def unmount_extra(env, check=True):
-    qemu = 'qemu-%s-static' % ('arm' if env.arch in ('armhf', 'armel') else env.arch,)
+    if env.arch == 'arm64':
+        qemu_arch = 'aarch64'
+    elif env.arch in ('armhf', 'armel'):
+        qemu_arch = 'arm'
+    else:
+        qemu_arch = env.arch
+    qemu = 'qemu-%s-static' % (qemu_arch,)
     qemu = os.path.join(env.usr_bin, qemu)
     if os.path.exists(qemu):
         run(['sudo', 'rm', qemu])
